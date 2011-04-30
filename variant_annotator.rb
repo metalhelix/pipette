@@ -29,7 +29,7 @@ module Ensembl
       # display label. This way, the display_label for the
       # transcript is pulled from the database when we query
       # for the transcript
-      belongs_to :name_xref, :class_name => "Xref", :foreign_key => 'display_xref_id' #:conditions => 'xref.xref_id = transcript.display_xref_id'
+      belongs_to :name_xref, :class_name => "Xref", :foreign_key => 'display_xref_id'
 
       # Additional method to use our name_xref association to
       # get the name, instead of the slow way the ensembl gem
@@ -39,6 +39,16 @@ module Ensembl
       end
       #has_many :exon_transcripts, :include => :exon
       #has_many :exons, :through => :exon_transcripts, :order => "rank ASC"
+    end
+
+    class Gene < DBConnection
+      # same as above
+      belongs_to :name_xref, :class_name => "Xref", :foreign_key => 'display_xref_id'
+
+      #same as above
+      def fast_display_name
+        self.name_xref.display_label
+      end
     end
   end
 end
@@ -122,16 +132,33 @@ class Genome
   end
 end
 
+class Impact
+  attr_accessor :main, :detail, :message
+  def initialize( main = nil, detail = nil, message = nil)
+    self.main = main
+    self.detail = detail
+    self.message = message
+  end
+  
+  def to_s
+    result = ""
+    result += "#{main}" if main
+    result +=" (#{detail})" if detail
+    result += " #{message}" if message
+    result
+  end
+end
+
 # Maintains data that will be used to 
 # annotate the variant. knows how to 
 # output the data in the way we want it
 class Record
-
   def initialize variant
     @variant = variant
     @genes = Array.new 
     @transcripts = Array.new
-    @impacts = Hash.new
+    @transcript_impacts = Hash.new
+    @transcript_location = Hash.new
   end
 
   def add_gene gene
@@ -139,10 +166,13 @@ class Record
     @genes << gene unless @genes.include? gene
   end
   
-  def add_transcript transcript, impact
+  def add_transcript transcript, location, impacts
     puts "ERROR: not a transcript: #{transcript}" unless transcript.kind_of? Ensembl::Core::Transcript
-    @transcripts << transcript unless @transcripts.include? transcript
-    @impacts[transcript.id] = impact
+    unless @transcripts.include? transcript
+      @transcripts << transcript 
+      @transcript_location[transcript.id] = location
+      @transcript_impacts[transcript.id] = impacts unless impacts.empty?
+    end
   end
 
   def variant_string
@@ -150,21 +180,15 @@ class Record
   end
 
   def gene_string
-    @genes.empty? ? "none" : @genes.map {|gene| "#{gene.name}"}.join("; ")
+    @genes.empty? ? "none" : @genes.map {|gene| "#{gene.fast_display_name}"}.join("; ")
   end
 
   def transcript_string
     transcript_strings = @transcripts.map do |transcript| 
-      impact = @impacts[transcript.id]
-      additional_info = ""
-      if impact
-        additional_info += "#{impact[:main]}" unless !impact[:main] || impact[:main].empty?
-        additional_info += " (#{impact[:detail]})" unless !impact[:detail] || impact[:detail].empty?
-      end
-      
+      impacts = @transcript_impacts[transcript.id]
+      additional_info = impacts.inject("") {|info, impact| info + impact.to_s }
       "#{transcript.fast_display_name}:#{additional_info}(#{transcript.seq_region_start}:#{transcript.seq_region_strand})"
     end
-
     transcript_strings.empty? ? "none" : transcript_strings.join("; ")
   end
 
@@ -173,10 +197,10 @@ class Record
   end
 end
 
+
 # performs the actual annotation of each
 # variant found in the vcf file
 class Annotator
-
   def initialize input_file, output_file_name
     @input_file = input_file
     @output_file_name = output_file_name
@@ -222,26 +246,46 @@ class Annotator
     transcripts.each do |transcript|
 
       biotype = transcript.biotype
+      
+      impacts = Array.new
+      location = :unknown
+      
       if biotype == 'protein_coding'
         gene = transcript.gene
         record.add_gene gene
 
-        impact = determine_impact variant, transcript
+        location = determine_location(variant, transcript)
+        impacts = determine_impact(variant, transcript, location)
+        
       else
-        impact[:main] = biotype
+        impacts << Impact.new(biotype)
       end
-
+      
       exclaim! "recording transcript"
-      record.add_transcript transcript, impact
-
+      record.add_transcript transcript, location, impacts
     end
 
     exclaim! "vcf line done. adding to records"
     @records  << record.to_s
     exclaim! "done"
   end
+  
+  def determine_impact variant, transcript, location
+    impacts = Array.new
+    case location
+    when :exon
+      impacts << analyze_in_exon(variant, transcript)
+    when :utr
+      impacts << analyze_in_utr(variant, transcript)
+    when :intron
+      impacts << analyze_in_intron(variant, transcript)
+    else
+      impacts << Impact.new("unknown")
+    end
+    impacts.flatten
+  end
 
-  def determine_impact variant, transcript  
+  def determine_location variant, transcript  
     # three possibilites for the location of the variant:
     #  * in the CDS
     #   ** exon is found and variant is within the start / stop of 
@@ -250,7 +294,7 @@ class Annotator
     #   ** exon is found but variant is outside of coding region
     #  * in a Intron
     #   ** no exon found
-    impact = {:main => "", :detail => "" }
+    location = :unknown
     variant_exon = transcript.exon_for_genomic_position(variant.start)
     coding_start = transcript.coding_region_genomic_start
     coding_stop = transcript.coding_region_genomic_end
@@ -258,43 +302,43 @@ class Annotator
     if variant_exon and ((variant.start > coding_start) and (variant.start < coding_stop))
       # in CDS
       exclaim! "variant in exon"
-      impact[:main] = "exon"
-      impact[:detail] = analyze_in_exon(variant, transcript)      
+      location = :exon
     elsif variant_exon and ((variant.start < coding_start) or (variant.start > coding_stop))
       # in UTR
       exclaim! "variant in UTR"
-      impact[:main] = "utr"
+      location = :utr
     elsif !variant_exon
       #in intron
       exclaim! "variant in intron"
-      impact[:main] = "intron"
+      location = :intron
     else
       puts "ERROR: invalid variant location"
-      impact[:main] = "unknown"
+      location = :unknown
     end
-    impact
+    location
   end
   
   def analyze_in_exon variant, transcript
-    impact = ""
+    impacts = Array.new
     original_sequence = transcript.protein_seq
     variant.mutant_alleles.each do |allele|
       mutated_sequence = mutate_transcript(allele, variant.start, transcript)
-      impact += analyze_exon_mutation(original_sequence, mutated_sequence)
+      impacts << analyze_exon_mutation(original_sequence, mutated_sequence)
     end
-    impact
+    impacts
   end
 
   def analyze_exon_mutation original_sequence, mutated_sequence
-    impact = ""
+    impact = Impact.new
     if !mutated_sequence.end_with? "*"
-      impact = "lost stop codon"
+      impact.main = "lost stop codon"
+      impact.detail = "1,1"
     elsif original_sequence == mutated_sequence
-      impact = "synonymous"
+      impact.main = "synonymous"
     elsif (mutated_sequence =~ /\*/) != (mutated_sequence.size - 1)
-      impact = "nonsense"
+      impact.main = "nonsense"
     else
-      impact = "other"
+      impact.main = "other"
     end
     impact
   end
@@ -314,10 +358,19 @@ class Annotator
 
     Bio::Sequence::NA.new(mutated_sequence).translate
   end
+  
+  def analyze_in_utr(variant, transcript)
+    impact = Impact.new
+    
+  end
+  
+  def analyze_in_intron(variant, transcript)
+    impact = Impact.new
+  end
 
   def out
     exclaim! "writing out to file"
-    header = "chromosome, variant_start, variant_stop, reference, mutation, quality, genes, transcripts(pos:strand), impact, go terms"
+    header = "chromosome, variant_start, variant_stop, reference, mutation, quality, genes, transcripts(pos:strand), location, impact, go terms"
     records_out = @records.join("\n")
     output_file = File.new(@output_file_name, 'w')
     output_file << header << "\n"
