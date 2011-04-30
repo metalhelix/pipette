@@ -25,8 +25,15 @@ DBConnection.connect("drosophila_melanogaster", 62)
 module Ensembl
   module Core
     class Transcript < DBConnection
+      # This directly associates the Xref for the transcripts
+      # display label. This way, the display_label for the
+      # transcript is pulled from the database when we query
+      # for the transcript
       belongs_to :name_xref, :class_name => "Xref", :foreign_key => 'display_xref_id' #:conditions => 'xref.xref_id = transcript.display_xref_id'
 
+      # Additional method to use our name_xref association to
+      # get the name, instead of the slow way the ensembl gem
+      # is doing it now
       def fast_display_name
         self.name_xref.display_label
       end
@@ -36,6 +43,9 @@ module Ensembl
   end
 end
 
+# Represents a variant from a line in the vcf file.
+# holds all the data pulled from that line and allows us to 
+# work with this info in a object oriented way
 class Variant
   attr_accessor :start, :stop, :chromosome, :reference, :alleles, :length, :quality, :mutant_alleles
 
@@ -66,6 +76,10 @@ class Variant
 
 end
 
+# Chromosome class is used to 
+# store aggregate data from the database
+# this allows us to not hit the database for
+# every new variant we are annotating
 class Chromosome
   attr_accessor :name
   
@@ -80,10 +94,17 @@ class Chromosome
   end
 
   def slice
+    # This will lazy load the slice representing the 
+    # entire chromosome, and store it in the member variable
+    # so that next time we will just use the data in @slice
+    # and not have to hit the database again
     @slice ||= Slice.fetch_by_region('chromosome', self.name)
   end
 
   def transcripts
+    # Here we lazy load all the transcripts for the
+    # chromosome and cache them in @transcripts so we
+    # only hit the database once
     @transcripts ||= self.slice.transcripts(:include => [ :exon_transcripts, :seq_region ] )
   end
 end
@@ -92,12 +113,18 @@ class Genome
   @@chromosomes = {}
 
   def self.chromosome name
+    # if we have acquired this chromosome
+    # before, then get it out of the hash
+    # else, create a new one with this name now
     @@chromosomes[name] ||= Chromosome.new(name)
 
     @@chromosomes[name]
   end
 end
 
+# Maintains data that will be used to 
+# annotate the variant. knows how to 
+# output the data in the way we want it
 class Record
 
   def initialize variant
@@ -131,8 +158,8 @@ class Record
       impact = @impacts[transcript.id]
       additional_info = ""
       if impact
-        additional_info += "#{impact[:main]}" unless impact[:main].empty?
-        additional_info += " (#{impact[:detail]})" unless impact[:detail].empty?
+        additional_info += "#{impact[:main]}" unless !impact[:main] || impact[:main].empty?
+        additional_info += " (#{impact[:detail]})" unless !impact[:detail] || impact[:detail].empty?
       end
       
       "#{transcript.fast_display_name}:#{additional_info}(#{transcript.seq_region_start}:#{transcript.seq_region_strand})"
@@ -146,6 +173,8 @@ class Record
   end
 end
 
+# performs the actual annotation of each
+# variant found in the vcf file
 class Annotator
 
   def initialize input_file, output_file_name
@@ -164,24 +193,24 @@ class Annotator
     file.each_line do |line|
       # skip comment lines
       next if line =~ /^#/
-
       variant = Variant.from_vcf line
-      
       # skip if there aren't really any 
       # variant alleles in the variant
       next if variant.mutant_alleles.empty?
-
+      # valid variant - lets annotate it!
       annotate_variant variant
     end
     file.close
   end
 
   def annotate_variant variant
-    
+    # record will store relevant info about
+    # variant we are annotating
     record = Record.new variant
-
     # acquire the chromosome this variant is on 
-    # from our Genonme 'database'
+    # from our Genonme 'database' 
+    # This allows us to load all transcripts 
+    # on a chromosome at one time
     chromosome = Genome.chromosome(variant.chromosome)
 
     # acquire transcripts that this variant overlaps
@@ -259,7 +288,7 @@ class Annotator
   def analyze_exon_mutation original_sequence, mutated_sequence
     impact = ""
     if !mutated_sequence.end_with? "*"
-      impact = "lost stop codone"
+      impact = "lost stop codon"
     elsif original_sequence == mutated_sequence
       impact = "synonymous"
     elsif (mutated_sequence =~ /\*/) != (mutated_sequence.size - 1)
