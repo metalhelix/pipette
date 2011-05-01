@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'benchmark'
+require 'logger'
 include Benchmark
 
 if ARGV.size != 2
@@ -16,20 +17,45 @@ puts "require ensembl gem"
 require 'ensembl'
 include Ensembl::Core
 
+#ActiveRecord::Base.logger = Logger.new(STDOUT)
+
 puts "require bio gem"
 require 'bio'
 
 puts "connecting to database"
 DBConnection.connect("drosophila_melanogaster", 62)
 
+class String
+  def first_diff other_string
+    diff_pos = 0
+    self.each_char {|char| char != other_string[diff_pos] ? break : diff_pos += 1}
+    diff_pos
+  end
+end
+
 module Ensembl
   module Core
+    
+    # class ExonTranscript < DBConnection
+    #    belongs_to :exon
+    #    belongs_to :transcript
+    # end
+    
     class Transcript < DBConnection
       # This directly associates the Xref for the transcripts
       # display label. This way, the display_label for the
       # transcript is pulled from the database when we query
       # for the transcript
       belongs_to :name_xref, :class_name => "Xref", :foreign_key => 'display_xref_id'
+      
+      #has_many :exon_transcripts, :include => :exon, :order => "rank ASC"
+      
+      #undef exons
+      #has_many :exons, :through => :exon_transcripts
+      
+      #def exons
+      #  @exons ||= self.exon_transcripts.map {|et| et.exon }
+      #end
 
       # Additional method to use our name_xref association to
       # get the name, instead of the slow way the ensembl gem
@@ -37,17 +63,24 @@ module Ensembl
       def fast_display_name
         self.name_xref.display_label
       end
-      #has_many :exon_transcripts, :include => :exon
-      #has_many :exons, :through => :exon_transcripts, :order => "rank ASC"
+      
     end
 
     class Gene < DBConnection
       # same as above
       belongs_to :name_xref, :class_name => "Xref", :foreign_key => 'display_xref_id'
-
       #same as above
       def fast_display_name
         self.name_xref.display_label
+      end
+    end
+    
+    class Slice
+      def fast_transcripts
+        conditions = "seq_region_id = #{self.seq_region.id.to_s}"
+        conditions += " AND seq_region_start >= #{self.start.to_s}"
+        conditions += " AND seq_region_end <= #{self.stop.to_s}"
+        Transcript.find(:all, :conditions => conditions, :include => [:gene, :exon_transcripts, :translation])
       end
     end
   end
@@ -62,11 +95,11 @@ class Variant
   def initialize chromosome, start, reference, quality, alleles
     self.chromosome = chromosome
     self.start = start.to_i
-    self.reference = reference.downcase
+    self.reference = reference.upcase
     self.length = self.reference.size
     self.stop = (self.start + self.length - 1).to_i
     self.quality = quality
-    alleles = alleles.downcase
+    alleles = alleles.upcase
     if alleles.kind_of? String
       self.alleles = alleles.split(",")
     else
@@ -115,7 +148,7 @@ class Chromosome
     # Here we lazy load all the transcripts for the
     # chromosome and cache them in @transcripts so we
     # only hit the database once
-    @transcripts ||= self.slice.transcripts(:include => [ :exon_transcripts, :seq_region ] )
+    @transcripts ||= self.slice.fast_transcripts
   end
 end
 
@@ -132,9 +165,19 @@ class Genome
   end
 end
 
+class Location
+  attr_accessor :type, :strand, :position
+  
+  def initialize(type = :unknown, strand = 0, position = 0)
+    self.type = type
+    self.strand = strand
+    self.position = position
+  end
+end
+
 class Impact
   attr_accessor :main, :detail, :message
-  def initialize( main = nil, detail = nil, message = nil)
+  def initialize( main = nil, detail = nil, message = nil )
     self.main = main
     self.detail = detail
     self.message = message
@@ -180,14 +223,24 @@ class Record
   end
 
   def gene_string
-    @genes.empty? ? "none" : @genes.map {|gene| "#{gene.fast_display_name}"}.join("; ")
+    @genes.empty? ? "" : @genes.map {|gene| "#{gene.fast_display_name}"}.join("; ")
   end
 
   def transcript_string
     transcript_strings = @transcripts.map do |transcript| 
       impacts = @transcript_impacts[transcript.id]
-      additional_info = impacts.inject("") {|info, impact| info + impact.to_s }
-      "#{transcript.fast_display_name}:#{additional_info}(#{transcript.seq_region_start}:#{transcript.seq_region_strand})"
+      impact_info = impacts.inject("") {|info, impact| info + impact.to_s }
+      location = @transcript_location[transcript.id]
+      
+      location_info = ""
+      if location
+        location_info = "("
+        # add one to position for display purposes
+        location_info += "#{location.position + 1}:" unless location.type == :intron
+        location_info += "#{location.strand}"
+        location_info +=")"
+      end
+      "#{transcript.fast_display_name}:#{impact_info} #{location_info}"
     end
     transcript_strings.empty? ? "none" : transcript_strings.join("; ")
   end
@@ -248,14 +301,19 @@ class Annotator
       biotype = transcript.biotype
       
       impacts = Array.new
-      location = :unknown
+      location = Location.new(:unkown,0)
       
       if biotype == 'protein_coding'
         gene = transcript.gene
         record.add_gene gene
 
+        exclaim! "determining location"
         location = determine_location(variant, transcript)
+        exclaim! "location done"
+        
+        exclaim! "determining impact"
         impacts = determine_impact(variant, transcript, location)
+        exclaim! "impact done"
         
       else
         impacts << Impact.new(biotype)
@@ -270,21 +328,6 @@ class Annotator
     exclaim! "done"
   end
   
-  def determine_impact variant, transcript, location
-    impacts = Array.new
-    case location
-    when :exon
-      impacts << analyze_in_exon(variant, transcript)
-    when :utr
-      impacts << analyze_in_utr(variant, transcript)
-    when :intron
-      impacts << analyze_in_intron(variant, transcript)
-    else
-      impacts << Impact.new("unknown")
-    end
-    impacts.flatten
-  end
-
   def determine_location variant, transcript  
     # three possibilites for the location of the variant:
     #  * in the CDS
@@ -293,8 +336,9 @@ class Annotator
     #  * in an UTR
     #   ** exon is found but variant is outside of coding region
     #  * in a Intron
-    #   ** no exon found
-    location = :unknown
+    #   ** no exon found    
+    location = Location.new(:unknown, transcript.strand)
+    
     variant_exon = transcript.exon_for_genomic_position(variant.start)
     coding_start = transcript.coding_region_genomic_start
     coding_stop = transcript.coding_region_genomic_end
@@ -302,52 +346,94 @@ class Annotator
     if variant_exon and ((variant.start > coding_start) and (variant.start < coding_stop))
       # in CDS
       exclaim! "variant in exon"
-      location = :exon
+      location.type = :exon
+      location.position = locate_mutation_in_cds(variant, transcript)
     elsif variant_exon and ((variant.start < coding_start) or (variant.start > coding_stop))
       # in UTR
       exclaim! "variant in UTR"
-      location = :utr
+      location.type = :utr
+      location.position = locate_mutation_in_cdna(variant, transcript)
     elsif !variant_exon
       #in intron
       exclaim! "variant in intron"
-      location = :intron
+      location.type = :intron
     else
       puts "ERROR: invalid variant location"
-      location = :unknown
+      location.type = :unknown
     end
     location
   end
   
-  def analyze_in_exon variant, transcript
+  def determine_impact variant, transcript, location
     impacts = Array.new
-    original_sequence = transcript.protein_seq
-    variant.mutant_alleles.each do |allele|
-      mutated_sequence = mutate_transcript(allele, variant.start, transcript)
-      impacts << analyze_exon_mutation(original_sequence, mutated_sequence)
+    case location.type
+    when :exon
+      impacts << analyze_in_exon(variant, transcript, location)
+    when :utr
+      impacts << analyze_in_utr(variant, transcript, location)
+    when :intron
+      impacts << analyze_in_intron(variant, transcript, location)
+    else
+      impacts << Impact.new("unknown")
+    end
+    impacts.flatten
+  end
+  
+  def analyze_in_exon variant, transcript, location
+    impacts = Array.new
+    original_protein_sequence = transcript.protein_seq
+    
+    variant.mutant_alleles.each do |allele|      
+      mutated_protein_sequence = mutate_transcript(allele, location.position, transcript)
+      impacts << describe_protein_mutation(original_protein_sequence, mutated_protein_sequence)
     end
     impacts
   end
 
-  def analyze_exon_mutation original_sequence, mutated_sequence
+  def describe_protein_mutation original_sequence, mutated_sequence
     impact = Impact.new
     if !mutated_sequence.end_with? "*"
-      impact.main = "lost stop codon"
-      impact.detail = "1,1"
+      # Stop codon has been lost. details for this impact 
+      #  are the length of the translated sequence and what
+      #  the stop codon has been changed to
+      impact.main = "LS"
+      impact.detail = "#{mutated_sequence.size}, #{original_sequence[-1..-1]}->#{mutated_sequence[-1..-1]}"
     elsif original_sequence == mutated_sequence
+      # Synonymous resulting mutated protein
+      # we do not provide more info
       impact.main = "synonymous"
-    elsif (mutated_sequence =~ /\*/) != (mutated_sequence.size - 1)
+    elsif ((stop_codon_position = mutated_sequence =~ /\*/) != (mutated_sequence.size - 1))
       impact.main = "nonsense"
+      impact.detail = "#{stop_codon_position}:#{mutated_sequence.size}"
     else
       impact.main = "other"
+      # find where they don't match
+      if original_sequence.size != mutated_sequence.size
+        puts "ERROR: original and mutated protein length do not match" 
+      else
+        diff_pos = original_sequence.first_diff mutated_sequence
+        old_peptide = original_sequence[diff_pos]
+        new_peptie = mutated_sequence[diff_pos]
+        diff_pos += 1 # for display
+        impact.detail = "#{old_peptide}:#{new_peptie} #{diff_pos}"
+      end
     end
     impact
   end
+  
+  def locate_mutation_in_cds variant, transcript
+    transcript.genomic2cds(variant.start)
+  end
+  
+  def locate_mutation_in_cdna variant, transcript
+    transcript.genomic2cdna(variant.start)
+  end
 
-  def mutate_transcript raw_mutation, raw_start, transcript
+  def mutate_transcript raw_mutation, mutation_location, transcript
     # cds_seq returns the coding sequence of the transcript
     #  the concatenated sequence of all exons minus the UTRs
     sequence = transcript.cds_seq
-    mutation_location = transcript.genomic2cds(raw_start)
+    
     # flip the mutation if the strand is reversed
     # TODO: not sure if this is necessary. Was in the old code
     mutation = (transcript.strand == 1) ? raw_mutation : 
@@ -359,19 +445,36 @@ class Annotator
     Bio::Sequence::NA.new(mutated_sequence).translate
   end
   
-  def analyze_in_utr(variant, transcript)
-    impact = Impact.new
+  def analyze_in_utr variant, transcript, location
+    impact = Impact.new "utr"
     
   end
   
-  def analyze_in_intron(variant, transcript)
-    impact = Impact.new
+  def analyze_in_intron variant, transcript, location
+    impact = Impact.new "intron"
+    introns = transcript.introns
+    introns.each do |intron|
+      if variant.start == intron.seq_region_start or variant.stop == intron.seq_region_start
+        exon = transcript.strand == 1 ? intron.previous_exon : intron.next_exon
+        impact.description = "SJ;Exon: #{exon.fast_display_name}"
+        break
+      elsif variant.start == intron.seq_region_end or variant.stop == intron.seq_region_end
+        exon = transcript.strand == 1 ? intron.next_exon : intron.previous_exon
+        impact.description = "SJ;Exon: #{exon.fast_display_name}"
+        break
+      elsif variant.start > intron.seq_region_start and variant.stop < intron.seq_region_end
+        
+        break
+      end
+    end
+    
+    
   end
 
   def out
     exclaim! "writing out to file"
     header = "chromosome, variant_start, variant_stop, reference, mutation, quality, genes, transcripts(pos:strand), location, impact, go terms"
-    records_out = @records.join("\n")
+    records_out = @records.join()
     output_file = File.new(@output_file_name, 'w')
     output_file << header << "\n"
     output_file << records_out
