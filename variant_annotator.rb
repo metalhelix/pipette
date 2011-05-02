@@ -17,7 +17,21 @@ puts "require ensembl gem"
 require 'ensembl'
 include Ensembl::Core
 
+class Rails
+  
+  def self.version
+    '3.0'
+  end
+  
+  def self.root
+    '.'
+  end
+end
+
 #ActiveRecord::Base.logger = Logger.new(STDOUT)
+require 'bullet'
+Bullet.enable = true
+Bullet.bullet_logger = true
 
 puts "require bio gem"
 require 'bio'
@@ -80,7 +94,7 @@ module Ensembl
         conditions = "seq_region_id = #{self.seq_region.id.to_s}"
         conditions += " AND seq_region_start >= #{self.start.to_s}"
         conditions += " AND seq_region_end <= #{self.stop.to_s}"
-        Transcript.find(:all, :conditions => conditions, :include => [:gene, :exon_transcripts, :translation])
+        Transcript.find(:all, :conditions => conditions, :include => [:gene, :translation])
       end
     end
   end
@@ -173,6 +187,15 @@ class Location
     self.strand = strand
     self.position = position
   end
+  
+  def to_s
+    location_string = "("
+    # add one to position for display purposes
+    location_string += "#{position + 1}:" unless type == :intron
+    location_string += "#{strand}"
+    location_string +=")" 
+    location_string   
+  end
 end
 
 class Impact
@@ -187,7 +210,7 @@ class Impact
     result = ""
     result += "#{main}" if main
     result +=" (#{detail})" if detail
-    result += " #{message}" if message
+    result += " - #{message}" if message
     result
   end
 end
@@ -223,30 +246,29 @@ class Record
   end
 
   def gene_string
-    @genes.empty? ? "" : @genes.map {|gene| "#{gene.fast_display_name}"}.join("; ")
+    @genes.empty? ? "none" : @genes.map {|gene| "#{gene.fast_display_name}"}.join("; ")
   end
 
   def transcript_string
     transcript_strings = @transcripts.map do |transcript| 
-      impacts = @transcript_impacts[transcript.id]
-      impact_info = impacts.inject("") {|info, impact| info + impact.to_s }
       location = @transcript_location[transcript.id]
-      
-      location_info = ""
-      if location
-        location_info = "("
-        # add one to position for display purposes
-        location_info += "#{location.position + 1}:" unless location.type == :intron
-        location_info += "#{location.strand}"
-        location_info +=")"
-      end
-      "#{transcript.fast_display_name}:#{impact_info} #{location_info}"
+      location_info = location ? location.to_s : ""
+      "#{transcript.fast_display_name}: #{location_info}"
     end
     transcript_strings.empty? ? "none" : transcript_strings.join("; ")
   end
+  
+  def impact_string
+    impact_strings = @transcripts.map do |transcript| 
+      impacts = @transcript_impacts[transcript.id]
+      impact_info = impacts.inject("") {|info, impact| info + impact.to_s }
+      "#{transcript.fast_display_name}: #{impact_info}"
+    end
+    impact_strings.empty? ? "none" : impact_strings.join("; ")
+  end
 
   def to_s
-    "#{variant_string}, #{gene_string}, #{transcript_string}\n"
+    "#{variant_string}, #{gene_string}, #{transcript_string}, #{impact_string}\n"
   end
 end
 
@@ -307,11 +329,11 @@ class Annotator
         gene = transcript.gene
         record.add_gene gene
 
-        exclaim! "determining location"
+        exclaim! "determining location of #{transcript.fast_display_name}"
         location = determine_location(variant, transcript)
         exclaim! "location done"
         
-        exclaim! "determining impact"
+        exclaim! "determining impact of #{transcript.fast_display_name}"
         impacts = determine_impact(variant, transcript, location)
         exclaim! "impact done"
         
@@ -345,8 +367,8 @@ class Annotator
     
     if variant_exon and ((variant.start > coding_start) and (variant.start < coding_stop))
       # in CDS
-      exclaim! "variant in exon"
-      location.type = :exon
+      exclaim! "variant in cds"
+      location.type = :cds
       location.position = locate_mutation_in_cds(variant, transcript)
     elsif variant_exon and ((variant.start < coding_start) or (variant.start > coding_stop))
       # in UTR
@@ -366,20 +388,25 @@ class Annotator
   
   def determine_impact variant, transcript, location
     impacts = Array.new
-    case location.type
-    when :exon
-      impacts << analyze_in_exon(variant, transcript, location)
-    when :utr
-      impacts << analyze_in_utr(variant, transcript, location)
-    when :intron
-      impacts << analyze_in_intron(variant, transcript, location)
-    else
-      impacts << Impact.new("unknown")
+    begin
+      case location.type
+      when :cds
+        impacts << analyze_in_cds(variant, transcript, location)
+      when :utr
+        impacts << analyze_in_utr(variant, transcript, location)
+      when :intron
+        impacts << analyze_in_intron(variant, transcript, location)
+      else
+        impacts << Impact.new("unknown")
+      end
+    rescue
+      puts "ERROR analyzing #{transcript.fast_display_name} in #{location.type}"
+      impacts << Impact.new("error")
     end
     impacts.flatten
   end
   
-  def analyze_in_exon variant, transcript, location
+  def analyze_in_cds variant, transcript, location
     impacts = Array.new
     original_protein_sequence = transcript.protein_seq
     
@@ -447,28 +474,40 @@ class Annotator
   
   def analyze_in_utr variant, transcript, location
     impact = Impact.new "utr"
-    
   end
   
+  # mostly just copied from the old perl script
   def analyze_in_intron variant, transcript, location
     impact = Impact.new "intron"
     introns = transcript.introns
     introns.each do |intron|
       if variant.start == intron.seq_region_start or variant.stop == intron.seq_region_start
         exon = transcript.strand == 1 ? intron.previous_exon : intron.next_exon
-        impact.description = "SJ;Exon: #{exon.fast_display_name}"
+        impact.message = "SJ;Exon: #{exon.seq_region_id}"
         break
       elsif variant.start == intron.seq_region_end or variant.stop == intron.seq_region_end
         exon = transcript.strand == 1 ? intron.next_exon : intron.previous_exon
-        impact.description = "SJ;Exon: #{exon.fast_display_name}"
+        impact.message = "SJ;Exon: #{exon.seq_region_id}"
         break
       elsif variant.start > intron.seq_region_start and variant.stop < intron.seq_region_end
+        next_exon = transcript.strand == 1 ? intron.next_exon : intron.previous_exon
+        previous_exon = transcript.strand == 1 ? intron.previous_exon : intron.next_exon
         
+        next_exon_distance = (variant.stop - intron.next_exon.seq_region_start).abs
+        previous_exon_distance = (variant.start - intron.previous_exon.seq_region_end).abs
+
+        message = "E: #{previous_exon.seq_region_id} #{previous_exon_distance} bp"
+        message += "E: #{next_exon.seq_region_id} #{next_exon_distance} bp"
+        
+        if next_exon_distance == 20
+          # a branch point is 20bps away from the AG side of the intron (aka the end of the intron)
+          message += " BP"
+        end
+        impact.message = message
         break
-      end
+      end      
     end
-    
-    
+    impact
   end
 
   def out
