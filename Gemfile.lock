@@ -1,5 +1,5 @@
 PATH
-  remote: ~/code/variantannotator/ensembl
+  remote: ensembl
   specs:
     ruby-ensembl-api (1.0.1)
       activerecord
@@ -24,7 +24,7 @@ GEM
     builder (2.1.2)
     i18n (0.5.0)
     mysql (2.8.1)
-    tzinfo (0.3.27)
+    tzinfo (0.3.25)
 
 PLATFORMS
   ruby

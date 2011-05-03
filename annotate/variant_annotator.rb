@@ -491,7 +491,7 @@ class Annotator
 
   def out
     exclaim! "writing out to file"
-    header = "chromosome, variant_start, variant_stop, reference, mutation, quality, genes, transcripts(pos:strand), location, impact, go terms"
+    header = "chromosome, variant_start, variant_stop, reference, mutation, quality, genes, transcripts(pos:strand), impact"
     records_out = @records.join()
     output_file = File.new(@output_file_name, 'w')
     output_file << header << "\n"
