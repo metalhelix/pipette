@@ -6,25 +6,25 @@ $options = {}
 $options[:recal] = false
 $options[:verbose] = true
 $options[:cores] = 4
+$options[:gatk] = "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK-1.0.5315/GenomeAnalysisTK.jar"
 
 OptionParser.new do |o|
-  o.on('-v', '--[no-]verbose') {|b| $options[:verbose] = b}
-  o.on('-q', '--quiet') {|b| $options[:verbose] = !b}
-  o.on('-i', '--input BAM_FILE', 'Input BAM file to call SNPs on') {|b| $options[:input] = b}
-  o.on('-r', '--reference FA_FILE', 'Reference Fasta file for genome') {|b| $options[:reference] = b}
+  o.on('-i', '--input BAM_FILE', 'REQUIRED - Input BAM file to call SNPs on') {|b| $options[:input] = b}
+  o.on('-r', '--reference FA_FILE', 'REQUIRED - Reference Fasta file for genome') {|b| $options[:reference] = b}
   o.on('-o', '--output PREFIX', 'Output prefix to use for generated files') {|b| $options[:output] = b}
-  o.on('-j', '--cores NUM', 'Specify number of cores to run GATK on') {|b| $options[:cores] = b.to_i}
-  o.on('-c', '--recalibrate COVARIATE_FILE', 'If provided, recalibration will occur using input covariate file') {|b| $options[:recal] = b}
-  o.on('-a', '--annotate GENOME', 'Annotate the SNPs and Indels found using the base GENOME') {|b| $options[:annotate] = b}
-  o.on('-g', '--gatk JAR_FILE', 'Specify GATK installation') {|b| $options[:gatk] = b}
-  o.on('-h', '--help', 'Displays help screen') {puts o; exit}
+  o.on('-j', '--cores NUM', "Specify number of cores to run GATK on. Default: #{$options[:cores]}") {|b| $options[:cores] = b.to_i}
+  o.on('-c', '--recalibrate COVARIATE_FILE', "If provided, recalibration will occur using input covariate file. Default: recalibration not performed") {|b| $options[:recal] = b}
+  o.on('-a', '--annotate GENOME', 'Annotate the SNPs and Indels using Ensembl based on input GENOME. Example Genome: FruitFly') {|b| $options[:annotate] = b}
+  o.on('-g', '--gatk JAR_FILE', "Specify GATK installation. Default: #{$options[:gatk]}") {|b| $options[:gatk] = b}
+  o.on('-q', '--quiet', 'Turn off some output') {|b| $options[:verbose] = !b}
+  o.on('-h', '--help', 'Displays help screen, then exits') {puts o; exit}
   o.parse!
 end
 
-raise "ERROR - input BAM file required. Use -i parameter" unless $options[:input]
-raise "ERROR - reference Fasta file required. Use -r parameter" unless $options[:reference]
+raise "ERROR - input BAM file required. Use -i parameter, or -h for more info" unless $options[:input]
+raise "ERROR - reference Fasta file required. Use -r parameter or -h for more info" unless $options[:reference]
 
-$options[:gatk] ||= "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK-1.0.5315/GenomeAnalysisTK.jar"
+
 $options[:java_default_params] ||= ["-Xmx5g"]
 $options[:gatk_default_params] ||= {"-et" => "NO_ET"}
 $options[:log_dir] ||= "log"
