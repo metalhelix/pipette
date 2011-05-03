@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+require 'rubygems'
+require 'bundler/setup'
+
 require 'benchmark'
 require 'logger'
 include Benchmark
@@ -13,28 +16,12 @@ end
 vcfile = ARGV[0]
 outfile = ARGV[1]
 
-puts "require ensembl gem"
 require 'ensembl'
-include Ensembl::Core
-
-class Rails
-  
-  def self.version
-    '3.0'
-  end
-  
-  def self.root
-    '.'
-  end
-end
-
-#ActiveRecord::Base.logger = Logger.new(STDOUT)
-require 'bullet'
-Bullet.enable = true
-Bullet.bullet_logger = true
-
-puts "require bio gem"
 require 'bio'
+
+ActiveRecord::Base.logger = Logger.new(STDOUT)
+
+include Ensembl::Core
 
 puts "connecting to database"
 DBConnection.connect("drosophila_melanogaster", 62)
@@ -61,15 +48,6 @@ module Ensembl
       # transcript is pulled from the database when we query
       # for the transcript
       belongs_to :name_xref, :class_name => "Xref", :foreign_key => 'display_xref_id'
-      
-      #has_many :exon_transcripts, :include => :exon, :order => "rank ASC"
-      
-      #undef exons
-      #has_many :exons, :through => :exon_transcripts
-      
-      #def exons
-      #  @exons ||= self.exon_transcripts.map {|et| et.exon }
-      #end
 
       # Additional method to use our name_xref association to
       # get the name, instead of the slow way the ensembl gem
@@ -94,7 +72,8 @@ module Ensembl
         conditions = "seq_region_id = #{self.seq_region.id.to_s}"
         conditions += " AND seq_region_start >= #{self.start.to_s}"
         conditions += " AND seq_region_end <= #{self.stop.to_s}"
-        Transcript.find(:all, :conditions => conditions, :include => [:gene, :translation])
+        Transcript.find(:all, :conditions => conditions, 
+          :include => [:gene, :translation, {:exon_transcripts => :exon}, :transcript_stable_id, :seq_region])
       end
     end
   end

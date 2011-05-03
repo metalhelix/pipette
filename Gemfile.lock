@@ -1,0 +1,35 @@
+PATH
+  remote: ~/code/variantannotator/ensembl
+  specs:
+    ruby-ensembl-api (1.0.1)
+      activerecord
+      bio (>= 1)
+
+GEM
+  remote: http://rubygems.org/
+  remote: http://rubygems.org/
+  specs:
+    activemodel (3.0.7)
+      activesupport (= 3.0.7)
+      builder (~> 2.1.2)
+      i18n (~> 0.5.0)
+    activerecord (3.0.7)
+      activemodel (= 3.0.7)
+      activesupport (= 3.0.7)
+      arel (~> 2.0.2)
+      tzinfo (~> 0.3.23)
+    activesupport (3.0.7)
+    arel (2.0.9)
+    bio (1.4.1)
+    builder (2.1.2)
+    i18n (0.5.0)
+    mysql (2.8.1)
+    tzinfo (0.3.27)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bio
+  mysql
+  ruby-ensembl-api!
