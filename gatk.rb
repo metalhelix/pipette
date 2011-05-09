@@ -30,7 +30,7 @@ class GATK
   end
 
   def can_handle_multithreading? tool
-    single_thread_only = ["RealignerTargetCreator", "IndelRealigner", "TableRecalibration"]
+    single_thread_only = ["RealignerTargetCreator", "IndelRealigner", "TableRecalibration", "VariantFiltration"]
     !single_thread_only.include? tool
   end
 
@@ -54,6 +54,6 @@ class GATK
 
     gatk_call = "java #{java_options} -jar #{gatk_jar} #{gatk_options} #{gatk_params_string}"
     puts gatk_call if @options[:verbose]
-    result = sysem(gatk_call)
+    result = system(gatk_call)
   end
 end
