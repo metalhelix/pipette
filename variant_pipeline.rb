@@ -2,9 +2,11 @@
 
 $:.unshift(File.join(File.dirname(__FILE__), "lib"))
 
-require 'vp'
+
 require 'optparse'
 require 'yaml'
+require 'fileutils'
+require 'vp'
 
 $options = {}
 $options[:recalibrate] = false
@@ -32,7 +34,7 @@ raise "ERROR - reference Fasta file required. Use -r parameter or -h for more in
 $options[:log_dir] ||= "log"
 $options[:out_dir] ||= "out"
 $options[:output] ||= $options[:input].split(".")[0..-2].join(".")
-prefix = $options[:output]
+
 
 puts "options used:\n#{$options.inspect}"
 
@@ -50,6 +52,10 @@ end
 # ---------------
 
 check_options
+# put analysis in its own sub-directory
+prefix = $options[:output]
+FileUtils.mkdir_p prefix
+prefix = "#{prefix}/#{prefix}"
 
 pipeline = Pipeline.new $options
 
