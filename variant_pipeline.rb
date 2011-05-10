@@ -37,11 +37,11 @@ prefix = $options[:output]
 puts "options used:\n#{$options.inspect}"
 
 def check_options
-  raise "ERROR GATK JAR not found at #{$options[:gatk]}" unless File.exists? $options[:gatk]
-  raise "ERROR Reference file not found at #{$options[:reference]}" unless File.exists? $options[:reference]
-  raise "ERROR Input file not found at #{$options[:input]}" unless File.exists? $options[:input]
+  raise "ERROR GATK JAR not found at:#{$options[:gatk]}." unless File.exists? $options[:gatk]
+  raise "ERROR Reference file not found at:#{$options[:reference]}." unless File.exists? $options[:reference]
+  raise "ERROR Input file not found at:#{$options[:input]}" unless File.exists? $options[:input]
   if $options[:recalibrate]
-    raise "ERROR covariate file not found at #{$options[:recalibrate]}" unless File.exists? $options[:recalibrate]
+    raise "ERROR covariate file not found at:#{$options[:recalibrate]}." unless File.exists? $options[:recalibrate]
   end
 end
 
@@ -52,7 +52,7 @@ end
 check_options
 
 pipeline = Pipeline.new $options
-exit
+
 variant_bam_file = pipeline.realign $options[:input], prefix
 
 should_recal = $options[:recalibrate]
