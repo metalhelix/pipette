@@ -21,7 +21,6 @@ class GATK
 
   def initialize options = {}
     defaults = { :verbose => true,
-                 :gatk => "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK-1.0.5315/GenomeAnalysisTK.jar",
                  :cores => 4,
                  :java_params => ["-Xmx5g"],
                  :gatk_params => {"-et" => "NO_ET"}
