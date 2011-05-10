@@ -78,6 +78,7 @@ vcf_files << indels_vcf_file
 filtered_vcf_files = pipeline.filter vcf_files
 
 if $options[:annotate]
+  puts "annoting: #{filtered_vcf_files.inspect}"
   pipeline.annotate filtered_vcf_files
 end
 

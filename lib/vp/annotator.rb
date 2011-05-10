@@ -5,7 +5,7 @@ class Annotator
   attr_accessor :genome, :script_path
 
   def initialize(options = {})
-    self.genome = options[:genome]
+    self.genome = options[:annotate]
     raise "ERROR: not valid genome: #{self.genome}. " unless valid_genome? self.genome
     self.script_path = find_script
     raise "ERROR: annotation script not found at: #{self.script_path}." unless self.script_path
@@ -30,12 +30,12 @@ class Annotator
     port = "5306"
     site = "ensembldb.ensembl.org"
 
-    csv_filename = vcf_filename.split(".")[0..-2] + ".annotate.csv"
+    csv_filename = vcf_filename.split(".")[0..-2].join(".") + ".annotate.csv"
     log_filename = csv_filename + ".log"
-    report "Starting annotation on #{vcf_filename}"
+    puts "Starting annotation on #{vcf_filename}"
     base_command = "#{self.script_path} "
     database_options = " #{@genome} #{database} #{port} #{site}"
-    command = base_command + vcf_filename + database_options + " 1> #{snp_annotation_file} 2> #{snp_annotation_log_file}"
+    command = base_command + vcf_filename + database_options + " 1> #{csv_filename} 2> #{log_filename}"
     system(command)
     csv_filename
   end

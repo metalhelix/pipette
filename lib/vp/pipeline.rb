@@ -120,7 +120,8 @@ class Pipeline
     report "Annotating vcf files"
     output_files = []
     vcf_files.each do |vcf_file|
-      output_files << @annotator.annotate(vcf_file)
+      output_file = @annotator.annotate(vcf_file)
+      output_files << output_file 
     end
     output_files
   end
