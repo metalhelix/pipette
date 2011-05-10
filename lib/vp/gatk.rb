@@ -21,7 +21,7 @@ class GATK
 
   def initialize options = {}
     defaults = { :verbose => true,
-                 :jar => "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK-1.0.5315/GenomeAnalysisTK.jar",
+                 :gatk => "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK-1.0.5315/GenomeAnalysisTK.jar",
                  :cores => 4,
                  :java_params => ["-Xmx5g"],
                  :gatk_params => {"-et" => "NO_ET"}
@@ -50,7 +50,7 @@ class GATK
 
     gatk_params_string = gatk_parameters.to_options
 
-    gatk_jar = @options[:jar]
+    gatk_jar = @options[:gatk]
 
     gatk_call = "java #{java_options} -jar #{gatk_jar} #{gatk_options} #{gatk_params_string}"
     puts gatk_call if @options[:verbose]

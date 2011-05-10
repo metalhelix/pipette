@@ -1,11 +1,3 @@
-class Variant
-  def initialize header, line
-  end
-
-  def to_h
-  end
-
-end
 
 class VCF
   def initialize filename
@@ -72,7 +64,6 @@ class VCF
           outfile << line
         else
           kill_count += 1
-          #puts "excluding: #{line}"
         end
       end
     end
@@ -80,7 +71,7 @@ class VCF
     puts "kept   : #{keep_count} / #{total_count} (#{keep_count.to_f/total_count.to_f*100.0}%)"
     puts "removed: #{kill_count} / #{total_count} (#{kill_count.to_f/total_count.to_f*100.0}%)" 
   end
-  
+
   def close
     @file.close
   end
