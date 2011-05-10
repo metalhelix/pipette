@@ -81,5 +81,5 @@ if $options[:annotate]
   pipeline.annotate filtered_vcf_files
 end
 
-report "Pipeline complete!"
+puts "Pipeline complete!"
 
