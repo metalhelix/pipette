@@ -26,6 +26,7 @@ class Annotator
   end
 
   def annotate vcf_filename
+    raise "ERROR: vcf file not found at: #{vcf_filename}" unless File.exists? vcf_filename
     database = database_for genome
     port = "5306"
     site = "ensembldb.ensembl.org"
@@ -36,6 +37,7 @@ class Annotator
     base_command = "#{self.script_path} "
     database_options = " #{@genome} #{database} #{port} #{site}"
     command = base_command + vcf_filename + database_options + " 1> #{csv_filename} 2> #{log_filename}"
+    puts command
     system(command)
     csv_filename
   end
