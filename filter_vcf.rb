@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
-$:.unshift(File.join(File.dirname(__FILE__), "lib")
-
+$:.unshift(File.join(File.dirname(__FILE__), "lib", "vp"))
+puts $:.inspect
 vcf_file = ARGV[0]
 out_file = ARGV[1]
 raise "ERROR: usage: variant_filter [VCF_FILE] [OUTPUT_FILE" unless vcf_file && out_file
