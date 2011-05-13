@@ -52,7 +52,7 @@ class Pipeline
     # output file from realign step
     realign_bam_file = "#{output_prefix}.realigned.bam"
 
-    if performing_step? :realignment
+    if performing_step? :realign
       report "Starting realignment interval creation"
       intervals_file = "#{output_prefix}.intervals"
       params = {"-T" => "RealignerTargetCreator",
