@@ -17,7 +17,7 @@ class Annotator
 
   def find_script
     annotate_script = File.join(File.dirname(__FILE__), "..","annotate", "annotateStrainSNVDiffs.pl")
-    annotate_script = File.exists? annotate_script ? annotate_script : nil
+    annotate_script = File.exists?(annotate_script) ? annotate_script : nil
     annotate_script
   end
 
