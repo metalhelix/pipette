@@ -22,7 +22,7 @@ OptionParser.new do |o|
   o.on('-j', '--cores NUM', "Specify number of cores to run GATK on. Default: #{$options[:cores]}") {|b| $options[:cores] = b.to_i}
   o.on('-c', '--recalibrate COVARIATE_FILE', "If provided, recalibration will occur using input covariate file. Default: recalibration not performed") {|b| $options[:recalibrate] = b}
   o.on('-a', '--annotate GENOME', 'Annotate the SNPs and Indels using Ensembl based on input GENOME. Example Genome: FruitFly') {|b| $options[:annotate] = b}
-  o.on('-g', '--gatk JAR_FILE', "Specify GATK installation") {|b| $options[:gatk] = b}
+  o.on('-g', '--gatk JAR_FILE', String, "Specify GATK installation") {|b| $options[:gatk] = b}
   o.on('-q', '--quiet', 'Turn off some output') {|b| $options[:verbose] = !b}
   o.on('-s', "--steps #{Pipeline.valid_steps.join(",")}", Array, 'Specify only which steps of the pipeline should be executed') {|b| $options[:steps] = b.collect {|step| step.to_sym} }
   o.on('-y', '--yaml YAML_FILE', String, 'Yaml configuration file that can be used to load options. Command line options will trump yaml options') {|b| $options.merge!(Hash[YAML::load(open(b)).map {|k,v| [k.to_sym, v]}]) }
@@ -36,8 +36,13 @@ raise "ERROR - reference Fasta file required. Use -r parameter or -h for more in
 $options[:log_dir] ||= "log"
 $options[:out_dir] ||= "out"
 $options[:output] ||= $options[:input].split(".")[0..-2].join(".")
+$options[:gatk] = File.expand_path($options[:gatk])
+$options[:reference] = File.expand_path($options[:reference])
 
-puts "options used:\n#{$options.inspect}"
+puts "options used:"
+$options.each do |option, value|
+  puts "#{option} => #{value}"
+end
 
 steps = $options[:steps] ? $options[:steps].collect {|step| step.to_sym} : nil
 
@@ -58,7 +63,10 @@ check_options
 puts "performing steps: #{steps.join(",")}"
 
 # put analysis in its own sub-directory
+
 prefix = $options[:output]
+puts "creating directory: #{prefix}"
+
 FileUtils.mkdir_p prefix unless Dir.exists? prefix
 prefix = "#{prefix}/#{prefix}"
 
