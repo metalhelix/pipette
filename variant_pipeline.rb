@@ -14,7 +14,8 @@ $options[:recalibrate] = false
 $options[:verbose] = true
 $options[:cores] = 4
 $options[:gatk] = "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK-1.0.5315/GenomeAnalysisTK.jar"
-$options[:steps] = @valid_steps 
+$options[:steps] = @valid_steps
+
 OptionParser.new do |o|
   o.on('-i', '--input BAM_FILE', 'REQUIRED - Input BAM file to call SNPs on') {|b| $options[:input] = b}
   o.on('-r', '--reference FA_FILE', 'REQUIRED - Reference Fasta file for genome') {|b| $options[:reference] = b}
@@ -24,7 +25,7 @@ OptionParser.new do |o|
   o.on('-a', '--annotate GENOME', 'Annotate the SNPs and Indels using Ensembl based on input GENOME. Example Genome: FruitFly') {|b| $options[:annotate] = b}
   o.on('-g', '--gatk JAR_FILE', "Specify GATK installation") {|b| $options[:gatk] = b}
   o.on('-q', '--quiet', 'Turn off some output') {|b| $options[:verbose] = !b}
-  o.on('-s', '--steps realign,recalibrate,call,filter,annotate', 'Specify only which steps of the pipeline should be executed') {|b| $options[:steps] = b.collect {|step| step.to_sym} }
+  o.on('-s', "--steps #{@valid_steps.join(",")}", Array 'Specify only which steps of the pipeline should be executed') {|b| $options[:steps] = b.collect {|step| step.to_sym} }
   o.on('-y', '--yaml YAML_FILE', String, 'Yaml configuration file that can be used to load options. Command line options will trump yaml options') {|b| $options.merge!(Hash[YAML::load(open(b)).map {|k,v| [k.to_sym, v]}]) }
   o.on('-h', '--help', 'Displays help screen, then exits') {puts o; exit}
   o.parse!
@@ -40,6 +41,8 @@ $options[:output] ||= $options[:input].split(".")[0..-2].join(".")
 
 puts "options used:\n#{$options.inspect}"
 
+@steps = $options[:steps] ? $options[:steps].collect {|step| step.to_sym} : nil
+
 def check_options
   raise "ERROR GATK JAR not found at:#{$options[:gatk]}." unless File.exists? $options[:gatk]
   raise "ERROR Reference file not found at:#{$options[:reference]}." unless File.exists? $options[:reference]
@@ -47,12 +50,16 @@ def check_options
   if $options[:recalibrate]
     raise "ERROR covariate file not found at:#{$options[:recalibrate]}." unless File.exists? $options[:recalibrate]
   end
-  if !$options[:steps] || $options[:steps].empty?
+
+end
+
+def check_steps
+  if !@steps || @steps.empty?
     raise "ERROR no steps provided"
   end
-  $options[:steps].each do |step|
+  @steps.each do |step|
     unless @valid_steps.include? step
-      raise "ERROR: #{step} not a valid step.\nvalid steps: #{@valid_steps.inspect}"
+      raise "ERROR: #{step} not a valid step.\nvalid steps: #{@valid_steps.join(",")}"
     end
   end
 end
@@ -62,14 +69,17 @@ end
 # ---------------
 
 check_options
-puts "performing steps: #{$options[:steps].inspect}"
-exit
+check_steps
+puts "performing steps: #{@steps.join(",")}"
+
 # put analysis in its own sub-directory
 prefix = $options[:output]
-FileUtils.mkdir_p prefix
+FileUtils.mkdir_p prefix unless Dir.exists? prefix
 prefix = "#{prefix}/#{prefix}"
 
 pipeline = Pipeline.new $options
+pipeline.prefix = prefix
+pipeline.steps = @steps
 
 variant_bam_file = pipeline.realign $options[:input], prefix
 
