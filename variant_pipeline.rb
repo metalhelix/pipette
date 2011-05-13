@@ -23,6 +23,8 @@ OptionParser.new do |o|
   o.on('-c', '--recalibrate COVARIATE_FILE', "If provided, recalibration will occur using input covariate file. Default: recalibration not performed") {|b| $options[:recalibrate] = b}
   o.on('-a', '--annotate GENOME', 'Annotate the SNPs and Indels using Ensembl based on input GENOME. Example Genome: FruitFly') {|b| $options[:annotate] = b}
   o.on('-g', '--gatk JAR_FILE', String, "Specify GATK installation") {|b| $options[:gatk] = b}
+  o.on('-e', '--snpEff JAR_FILE', String, "Specify snppEff Jar location") {|b| $options[:snpeff] = b}
+  o.on('-a', '--samtools BIN_PATH', String, "Specify location of samtools") {|b| $options[:samtools] = b}
   o.on('-q', '--quiet', 'Turn off some output') {|b| $options[:verbose] = !b}
   o.on('-s', "--steps #{Pipeline.valid_steps.join(",")}", Array, 'Specify only which steps of the pipeline should be executed') {|b| $options[:steps] = b.collect {|step| step.to_sym} }
   o.on('-y', '--yaml YAML_FILE', String, 'Yaml configuration file that can be used to load options. Command line options will trump yaml options') {|b| $options.merge!(Hash[YAML::load(open(b)).map {|k,v| [k.to_sym, v]}]) }
@@ -38,6 +40,8 @@ $options[:out_dir] ||= "out"
 $options[:output] ||= $options[:input].split(".")[0..-2].join(".")
 $options[:gatk] = File.expand_path($options[:gatk])
 $options[:reference] = File.expand_path($options[:reference])
+
+$options[:samtools] ||= %x[which samtools].chomp
 
 puts "options used:"
 $options.each do |option, value|

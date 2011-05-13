@@ -17,6 +17,10 @@ class Pipeline
     if @options[:annotate]
       @annotator = Annotator.new @options
     end
+
+    @samtools_path = options[:samtools]
+    raise "ERROR: no samtools at: #{@samtools_path}" unless File.exists? @samtools_path
+
     self.prefix = nil
   end
 
@@ -71,7 +75,7 @@ class Pipeline
       @gatk.execute params
 
       report "Starting index of realigned BAM with Samtools"
-      command = "samtools index #{realign_bam_file}"
+      command = "#{@samtools_path} index #{realign_bam_file}"
       execute command
     else
       report "Skipping realignment"
