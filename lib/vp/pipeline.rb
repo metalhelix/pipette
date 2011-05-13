@@ -5,6 +5,8 @@ require 'annotator'
 require 'vcf_filter'
 
 class Pipeline
+  @@valid_steps = [:realign, :recalibrate, :call, :filter, :annotate]
+
   attr_accessor :prefix, :steps
 
   def initialize options = {}
@@ -18,15 +20,28 @@ class Pipeline
     self.prefix = nil
   end
 
+  def self.valid_steps
+    @@valid_steps
+  end
+
+  def check_steps
+    if !steps || steps.empty?
+      raise "ERROR no steps provided"
+    end
+    steps.each do |step|
+      unless @@valid_steps.include? step
+        raise "ERROR: #{step} not a valid step.\nvalid steps: #{@@valid_steps.join(",")}"
+      end
+    end
+  end
+
   def performing_step? step
     @steps.include? step.to_sym
   end
 
   def execute command
     report command
-    #result = %x[#{command}]
     result = system(command)
-    #report result
   end
 
   def report status
@@ -137,7 +152,6 @@ class Pipeline
   end
 
   def filter vcf_files
-
     output_files = []
     vcf_files.each do |vcf_file|
       output_file = vcf_file.append_filename ".filtered.vcf"
@@ -145,7 +159,7 @@ class Pipeline
         report "Filtering vcf file: #{vcf_file}"
         VCFFilter.filter vcf_file, output_file
       else
-        report "Skipping vcf filter"
+        report "Skipping vcf filter of #{vcf_file}"
       end
       output_files << output_file
     end
@@ -157,10 +171,10 @@ class Pipeline
     output_files = []
     vcf_files.each do |vcf_file|
       if performing_step? :annotate
-      report "Annotating #{vcf_file}"
-      output_file = @annotator.annotate(vcf_file)
+        report "Annotating #{vcf_file}"
+        output_file = @annotator.annotate(vcf_file)
       else
-        report "Skipping annotation"
+        report "Skipping annotation of #{vcf_file}"
       end
       output_files << output_file 
     end
@@ -168,3 +182,4 @@ class Pipeline
     output_files
   end
 end
+
