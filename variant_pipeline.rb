@@ -22,9 +22,10 @@ OptionParser.new do |o|
   o.on('-j', '--cores NUM', "Specify number of cores to run GATK on. Default: #{$options[:cores]}") {|b| $options[:cores] = b.to_i}
   o.on('-c', '--recalibrate COVARIATE_FILE', "If provided, recalibration will occur using input covariate file. Default: recalibration not performed") {|b| $options[:recalibrate] = b}
   o.on('-a', '--annotate GENOME', 'Annotate the SNPs and Indels using Ensembl based on input GENOME. Example Genome: FruitFly') {|b| $options[:annotate] = b}
-  o.on('-g', '--gatk JAR_FILE', String, "Specify GATK installation") {|b| $options[:gatk] = b}
-  o.on('-e', '--snpEff JAR_FILE', String, "Specify snppEff Jar location") {|b| $options[:snpeff] = b}
-  o.on('-a', '--samtools BIN_PATH', String, "Specify location of samtools") {|b| $options[:samtools] = b}
+  o.on('--gatk JAR_FILE', String, "Specify GATK installation") {|b| $options[:gatk] = b}
+  o.on('--snpeff JAR_FILE', String, "Specify snppEff Jar location") {|b| $options[:snpeff] = b}
+  o.on('--snpeff_config CONFIG_FILE', String, "Specify snppEff config file location") {|b| $options[:snpeff_config] = b}
+  o.on('--samtools BIN_PATH', String, "Specify location of samtools") {|b| $options[:samtools] = b}
   o.on('-q', '--quiet', 'Turn off some output') {|b| $options[:verbose] = !b}
   o.on('-s', "--steps #{Pipeline.valid_steps.join(",")}", Array, 'Specify only which steps of the pipeline should be executed') {|b| $options[:steps] = b.collect {|step| step.to_sym} }
   o.on('-y', '--yaml YAML_FILE', String, 'Yaml configuration file that can be used to load options. Command line options will trump yaml options') {|b| $options.merge!(Hash[YAML::load(open(b)).map {|k,v| [k.to_sym, v]}]) }
@@ -35,12 +36,10 @@ end
 raise "ERROR - input BAM file required. Use -i parameter, or -h for more info" unless $options[:input]
 raise "ERROR - reference Fasta file required. Use -r parameter or -h for more info" unless $options[:reference]
 
-$options[:log_dir] ||= "log"
-$options[:out_dir] ||= "out"
 $options[:output] ||= $options[:input].split(".")[0..-2].join(".")
-$options[:gatk] = File.expand_path($options[:gatk])
 $options[:reference] = File.expand_path($options[:reference])
 
+$options[:gatk] = File.expand_path($options[:gatk])
 $options[:samtools] ||= %x[which samtools].chomp
 
 puts "options used:"
@@ -52,6 +51,7 @@ steps = $options[:steps] ? $options[:steps].collect {|step| step.to_sym} : nil
 
 def check_options
   raise "ERROR GATK JAR not found at:#{$options[:gatk]}." unless File.exists? $options[:gatk]
+  raise "ERROR samtools not found at:#{$options[:samtools]}." unless File.exists? $options[:samtools]
   raise "ERROR Reference file not found at:#{$options[:reference]}." unless File.exists? $options[:reference]
   raise "ERROR Input file not found at:#{$options[:input]}" unless File.exists? $options[:input]
   if $options[:recalibrate]
@@ -78,29 +78,5 @@ pipeline = Pipeline.new $options
 pipeline.prefix = prefix
 pipeline.steps = steps
 pipeline.check_steps
-
-variant_bam_file = pipeline.realign $options[:input], prefix
-
-should_recal = $options[:recalibrate]
-if should_recal
-  variant_bam_file = pipeline.recalibrate $options[:input], variant_bam_file, prefix
-end
-
-vcf_files = []
-snps_vcf_file = pipeline.call_snps variant_bam_file, prefix
-
-vcf_files << snps_vcf_file
-
-indels_vcf_file = pipeline.call_indels variant_bam_file, prefix
-
-vcf_files << indels_vcf_file
-
-filtered_vcf_files = pipeline.filter vcf_files
-
-if $options[:annotate]
-  puts "annoting: #{filtered_vcf_files.join(", ")}"
-  pipeline.annotate filtered_vcf_files
-end
-
-puts "Pipeline complete!"
+pipeline.run!
 

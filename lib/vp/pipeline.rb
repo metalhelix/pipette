@@ -52,6 +52,33 @@ class Pipeline
     puts "#{Time.now} - " + status if @options[:verbose]
   end
 
+  def run!
+    variant_bam_file = self.realign $options[:input], prefix
+
+    should_recal = $options[:recalibrate]
+    if should_recal
+      variant_bam_file = self.recalibrate $options[:input], variant_bam_file, prefix
+    end
+
+    vcf_files = []
+    snps_vcf_file = self.call_snps variant_bam_file, prefix
+
+    vcf_files << snps_vcf_file
+
+    indels_vcf_file = self.call_indels variant_bam_file, prefix
+
+    vcf_files << indels_vcf_file
+
+    filtered_vcf_files = self.filter vcf_files
+
+    if $options[:annotate]
+      puts "annoting: #{filtered_vcf_files.join(", ")}"
+      self.annotate filtered_vcf_files
+    end
+
+    puts "Pipeline complete!"
+  end
+
   def realign input_filename, output_prefix
     # output file from realign step
     realign_bam_file = "#{output_prefix}.realigned.bam"
