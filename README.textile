@@ -10,10 +10,17 @@ h2. Requirements
 
 This pipeline wraps the calling of a number of external tools to perform the variant calling and annotation. 
 
-Current Applications Expected by vp:
+h3. Current Applications Expected by vp:
+
 * "GATK":http://www.broadinstitute.org/gsa/wiki/index.php/The_Genome_Analysis_Toolkit - performs most of the SNP / Indel calling steps using the GATK's "Unified Genotyper":http://www.broadinstitute.org/gsa/wiki/index.php/Unified_genotyper
-* "samtools::http://samtools.sourceforge.net/ - for indexing output from GATK
+* "samtools":http://samtools.sourceforge.net/ - for indexing output from GATK
 * "snpEff":http://snpeff.sourceforge.net/ - for annotation
+
+h3. Ruby Environment
+
+variant_pipeline tested using ruby 1.9.2. May work with 1.8.7, but this has not been confirmed.
+
+h2. Configuration Options
 
 <pre>
 ./variant_pipeline.rb -h
@@ -34,3 +41,27 @@ Usage: variant_pipeline [options]
     -y, --yaml YAML_FILE             Yaml configuration file that can be used to load options. Command line options will trump yaml options
     -h, --help                       Displays help screen, then exits
 </pre>
+
+h2. Run Example
+
+The easiest way to run the variant pipeline is to create a config yaml file to store most of the required configurations and then run using the -y flag.
+
+h3. sample_config.yml
+
+<pre>
+reference: "~/genomes/Drosophila_melanogaster.BDGP5.4.54.dna.fasta"
+input: "./aligned.fly.bam"
+output: aligned.fly 
+annotate: dm5.34
+gatk: "~/tools/GATK/GenomeAnalysisTK.jar"
+snpeff: "~/tools/snpEff/snpEff.jar"
+snpeff_config: "~/tools/snpEff/snpEff.config"
+</pre>
+
+Then simply run variant_pipeline with the -y flag:
+
+<pre>
+./variant_pipeline/variant_pipeline.rb -y ./sample_config.yml
+</pre>
+
+And let the magic begin!
