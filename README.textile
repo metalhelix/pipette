@@ -1,0 +1,36 @@
+h1. Variant calling and annotation pipeline
+
+Script to facilitate the automation of finding variants (SNPs/Indels) in an aligned BAM file.
+
+h2. Prerequisites
+
+Currently, this pipeline does not perform the initial alignment step. This pipeline starts with an indexed BAM file and a reference genome.
+
+h2. Requirements
+
+This pipeline wraps the calling of a number of external tools to perform the variant calling and annotation. 
+
+Current Applications Expected by vp:
+* "GATK":http://www.broadinstitute.org/gsa/wiki/index.php/The_Genome_Analysis_Toolkit - performs most of the SNP / Indel calling steps using the GATK's "Unified Genotyper":http://www.broadinstitute.org/gsa/wiki/index.php/Unified_genotyper
+* "samtools::http://samtools.sourceforge.net/ - for indexing output from GATK
+* "snpEff":http://snpeff.sourceforge.net/ - for annotation
+
+<pre>
+./variant_pipeline.rb -h
+Usage: variant_pipeline [options]
+    -i, --input BAM_FILE             REQUIRED - Input BAM file to call SNPs on
+    -r, --reference FA_FILE          REQUIRED - Reference Fasta file for genome
+    -o, --output PREFIX              Output prefix to use for generated files
+    -j, --cores NUM                  Specify number of cores to run GATK on. Default: 4
+    -c, --recalibrate COVARIATE_FILE If provided, recalibration will occur using input covariate file. Default: recalibration not performed
+    -a, --annotate GENOME            Annotate the SNPs and Indels using Ensembl based on input GENOME. Example Genome: FruitFly
+        --gatk JAR_FILE              Specify GATK installation
+        --snpeff JAR_FILE            Specify snppEff Jar location
+        --snpeff_config CONFIG_FILE  Specify snppEff config file location
+        --samtools BIN_PATH          Specify location of samtools
+    -q, --quiet                      Turn off some output
+    -s realign,recalibrate,call,filter,annotate,
+        --steps                      Specify only which steps of the pipeline should be executed
+    -y, --yaml YAML_FILE             Yaml configuration file that can be used to load options. Command line options will trump yaml options
+    -h, --help                       Displays help screen, then exits
+</pre>
