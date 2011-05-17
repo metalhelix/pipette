@@ -1,7 +1,7 @@
 reference: "~/code/test/Drosophila_melanogaster.BDGP5.4.54.dna.fasta"
 input: "./test/data/test.bam"
 output: out
-annotate: FruitFly
+annotate: "dm5.34"
 gatk: "~/prj/tools/GATK/GenomeAnalysisTK.jar"
 snpeff: "~/prj/tools/snpEff/snpEff.jar"
 snpeff_config: "~/prj/tools/snpEff/snpEff.config"
