@@ -13,6 +13,8 @@ $options[:recalibrate] = false
 $options[:verbose] = true
 $options[:cores] = 4
 $options[:gatk] = "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK-1.0.5315/GenomeAnalysisTK.jar"
+$options[:snpeff] = "/n/site/inst/Linux-x86_64/bioinfo/snpEff/current/snpEff.jar"
+$options[:snpeff_config] = "/n/site/inst/Linux-x86_64/bioinfo/snpEff/current/snpEff.config"
 $options[:steps] = Pipeline.valid_steps
 
 OptionParser.new do |o|
@@ -40,6 +42,8 @@ $options[:output] ||= $options[:input].split(".")[0..-2].join(".")
 $options[:reference] = File.expand_path($options[:reference])
 
 $options[:gatk] = File.expand_path($options[:gatk])
+$options[:snpeff] = File.expand_path($options[:snpeff])
+$options[:snpeff_config] = File.expand_path($options[:snpeff_config])
 $options[:samtools] ||= %x[which samtools].chomp
 
 puts "options used:"

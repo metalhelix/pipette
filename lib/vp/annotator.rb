@@ -5,7 +5,7 @@ class Annotator
   def initialize(options = {})
     self.jar_path = options[:snpeff]
     raise "ERROR: snpEff jar not found at: #{self.jar_path}." unless File.exists?(self.jar_path)
-    self.config_path = options[:snpeff_confg]
+    self.config_path = options[:snpeff_config]
     raise "ERROR: snpEff config not found at: #{self.config_path}." unless File.exists?(self.config_path)
     self.database = options[:annotate]
     raise "ERROR: not valid annotation database: #{self.database}. " unless valid_database? self.database
