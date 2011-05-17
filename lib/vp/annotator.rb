@@ -1,45 +1,34 @@
 
 class Annotator
-  @@genome_databases = {"FruitFly" => "drosophila_melanogaster_core_57_513b"}
-
-  attr_accessor :genome, :script_path
+  attr_accessor :database, :jar_path, :config_path
 
   def initialize(options = {})
-    self.genome = options[:annotate]
-    raise "ERROR: not valid genome: #{self.genome}. " unless valid_genome? self.genome
-    self.script_path = find_script
-    raise "ERROR: annotation script not found at: #{self.script_path}." unless self.script_path
+    self.jar_path = options[:snpeff]
+    raise "ERROR: snpEff jar not found at: #{self.jar_path}." unless File.exists?(self.jar_path)
+    self.config_path = options[:snpeff_confg]
+    raise "ERROR: snpEff config not found at: #{self.config_path}." unless File.exists?(self.config_path)
+    self.database = options[:annotate]
+    raise "ERROR: not valid annotation database: #{self.database}. " unless valid_database? self.database
   end
 
-  def valid_genome? genome
-    genome && @@genome_databases.keys.include?(genome)
-  end
-
-  def find_script
-    annotate_script = File.join(File.dirname(__FILE__), "..","annotate", "annotateStrainSNVDiffs.pl")
-    annotate_script = File.exists?(annotate_script) ? annotate_script : nil
-    annotate_script
-  end
-
-  def database_for genome
-    @@genome_databases[genome]
+  def valid_database? database
+    true
   end
 
   def annotate vcf_filename
     raise "ERROR: vcf file not found at: #{vcf_filename}" unless File.exists? vcf_filename
-    database = database_for genome
-    port = "5306"
-    site = "ensembldb.ensembl.org"
 
-    csv_filename = vcf_filename.split(".")[0..-2].join(".") + ".annotate.csv"
-    log_filename = csv_filename + ".log"
+    base_name = vcf_filename.split(".")[0..-2].join(".")
+    output_filename = base_name + ".snpeff.txt"
+    stats_filename = base_name + ".snpeff.summary.html"
     puts "Starting annotation on #{vcf_filename}"
-    base_command = "#{self.script_path} "
-    database_options = " #{@genome} #{database} #{port} #{site}"
-    command = base_command + vcf_filename + database_options + " 1> #{csv_filename} 2> #{log_filename}"
+    command = "java -Xmx4g -jar #{self.jar_path} -c #{config_path}"
+    command += " -no-downstream -no-upstream -ud 0 -vcf4"
+    command += " -stats #{stats_filename}"
+    command += " #{self.database} #{vcf_filename} > #{output_filename}"
+
     puts command
     system(command)
-    csv_filename
+    output_filename
   end
-
 end
