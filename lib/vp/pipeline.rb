@@ -203,7 +203,7 @@ class Pipeline
     vcf_files.each do |vcf_file|
       if performing_step? :annotate
         report "Annotating #{vcf_file}"
-        output_file = @annotator.annotate(vcf_file)
+        output_file = @annotator.run(vcf_file)
       else
         report "Skipping annotation of #{vcf_file}"
       end

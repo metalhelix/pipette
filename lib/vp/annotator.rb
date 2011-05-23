@@ -1,34 +1,93 @@
+require 'snpeff'
 
-class Annotator
-  attr_accessor :database, :jar_path, :config_path
-
+class Summarizer
   def initialize(options = {})
-    self.jar_path = options[:snpeff]
-    raise "ERROR: snpEff jar not found at: #{self.jar_path}." unless File.exists?(self.jar_path)
-    self.config_path = options[:snpeff_config]
-    raise "ERROR: snpEff config not found at: #{self.config_path}." unless File.exists?(self.config_path)
-    self.database = options[:annotate]
-    raise "ERROR: not valid annotation database: #{self.database}. " unless valid_database? self.database
   end
 
-  def valid_database? database
-    true
-  end
+  def run input_filename
+    raise "ERROR: snpeff txt file not found at: #{input_filename}." unless File.exists? input_filename
+    base_name = input_filename.split(".")[0..-2].join(".")
+    output_filename = base_name + ".collapse.txt"
 
-  def annotate vcf_filename
-    raise "ERROR: vcf file not found at: #{vcf_filename}" unless File.exists? vcf_filename
+    collapse_file(input_filename, output_filename)
 
-    base_name = vcf_filename.split(".")[0..-2].join(".")
-    output_filename = base_name + ".snpeff.txt"
-    stats_filename = base_name + ".snpeff.summary.html"
-    puts "Starting annotation on #{vcf_filename}"
-    command = "java -Xmx4g -jar #{self.jar_path} -c #{config_path}"
-    command += " -no-downstream -no-upstream -ud 0 -vcf4"
-    command += " -stats #{stats_filename}"
-    command += " #{self.database} #{vcf_filename} > #{output_filename}"
-
-    puts command
-    system(command)
     output_filename
   end
+
+  ALL_DATA = ["Chrom", "Position", "Reference", "Change", "ChangeType", "Homozygous",
+              "Quality", "Coverage", "Warnings", "GeneID", "GeneName", "BioType",
+              "TranscriptID", "ExonID", "ExonRank", "Effect", "OldAA2NewAA", "OldCondon2NewCondon",
+              "CodonNum", "CDS_Size", "CodonsAround", "AAAround", "CustomIntervalID"]
+
+  HEADERS = ["Chrom", "Position", "Reference", "Change", "ChangeType",
+             "Quality", "Coverage", "GeneID", "GeneName", "BioType",
+             "TranscriptID", "Effect", "OldAA2NewAA", "OldCondon2NewCondon"]
+
+  COMBINE = ["TranscriptID", "Effect", "OldAA2NewAA", "OldCondon2NewCondon"]
+
+  def collapse_file input_filename, output_filename
+    output_file = File.open(output_filename, 'w')
+    print_header(HEADERS, output_file)
+    input_file = File.open(input_filename, 'r')
+    previous_id = nil
+    previous_data = {}
+    input_file.each_line do |line|
+      if line =~ /^#/
+        previous_id = nil
+      else
+        values = line.chomp.split("\t")
+        line_data = Hash[ALL_DATA.zip(values)]
+        id = line_data["Chrom"] + ";" + line_data["Position"]
+        puts "ERROR: id empty for data" if id.empty?
+
+        if previous_id and (previous_id != id)
+          print_data(previous_data, output_file)
+          previous_data = {}
+        end
+
+        previous_data = copy_data(previous_data, line_data)
+        previous_id = id
+      end
+    end
+
+    print_data(previous_data, output_file)
+    output_file.close
+    input_file.close
+  end
+
+  def copy_data old_data, new_data
+    data = {}
+    HEADERS.each do |header|
+      if COMBINE.include? header
+        new_data[header] ||= " "
+        data[header] = [old_data[header], new_data[header]].compact.join(";") 
+      else
+        data[header] = new_data[header]
+      end
+    end
+    data
+  end
+
+  def print_header header, file
+    file << header.join("\t") << "\n"
+  end
+
+  def print_data data, file
+    data = HEADERS.collect {|header| data[header]}
+    file << data.join("\t") << "\n"
+  end
 end
+
+class Annotator
+  def initialize(options = {})
+    @snpeff = SnpEff.new options
+    @summer = Summarizer.new options
+  end
+
+  def run input_file
+    snpeff_file = @snpeff.run input_file
+    summary_file = @summer.run snpeff_file
+    summary_file
+  end
+end
+
