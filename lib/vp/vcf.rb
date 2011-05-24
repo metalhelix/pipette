@@ -1,6 +1,7 @@
 
 class VCF
   def initialize filename
+    filename = File.expand_path(filename)
     raise "VCF File not found at: #{filename}" unless File.exists? filename
     @file = File.open(filename,'r')
   end
@@ -37,6 +38,20 @@ class VCF
     #hash_values.merge! hash_infos
     #puts "#{hash_values.inspect}"
     hash_values
+  end
+
+  def each
+    header = []
+    @file.each_line do |line|
+      if line =~ /^##/
+        next
+      elsif line =~ /^#/
+        header = line.chomp.gsub(/#/,"").split("\t")
+      else
+        raise "ERROR: header line not found" if header.empty?
+        yield to_h(header, line)
+      end
+    end
   end
 
   def copy_if output_filename
