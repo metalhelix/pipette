@@ -18,7 +18,6 @@ class Array
 end
 
 class GATK
-
   def initialize options = {}
     defaults = { :verbose => true,
                  :cores => 4,
@@ -26,6 +25,7 @@ class GATK
                  :gatk_params => {"-et" => "NO_ET"}
                }
     @options = options.merge defaults
+    check_options @options
   end
 
   def can_handle_multithreading? tool
@@ -35,6 +35,10 @@ class GATK
 
   def requires_reference_genome? tool
     true
+  end
+
+  def check_options options
+    raise "ERROR GATK JAR not found at:#{options[:gatk]}." unless File.exists? options[:gatk]
   end
 
   def execute gatk_parameters

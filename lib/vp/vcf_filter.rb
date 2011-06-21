@@ -1,5 +1,5 @@
 
-require 'vcf'
+require 'vp/vcf'
 
 class VCFFilter
   def self.filter input, output
