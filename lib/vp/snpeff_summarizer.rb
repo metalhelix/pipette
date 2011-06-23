@@ -1,8 +1,5 @@
 
 class SnpeffSummarizer
-  def initialize(options = {})
-  end
-
   def run input_filename, options
     raise "ERROR: snpeff txt file not found at: #{input_filename}." unless File.exists? input_filename
     base_name = input_filename.split(".")[0..-2].join(".")
