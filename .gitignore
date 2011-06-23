@@ -2,3 +2,4 @@ ensembl/*
 log/*
 out/*
 *.swp
+coverage/*
