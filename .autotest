@@ -1,0 +1,14 @@
+require 'autotest/fsevent'
+#require 'redgreen/autotest'
+require 'autotest/growl'
+
+Autotest.add_hook :initialize do |at|
+  at.clear_mappings
+  at.add_exception(/\.git/)
+  at.add_exception(/spec\/sandbox/)
+  at.add_exception(/doc/)
+  at.add_mapping(%r{^spec/.*_spec}) {|filename,_| at.files_matching %r{#{filename}}}
+  #at.add_mapping(%r{^bin/pipette}) {|_,_| at.files_matching %r{spec/runner_spec}}
+  at.add_mapping(%r{}) {|_,_| at.files_matching %r{spec/.*_spec}}
+end
+
