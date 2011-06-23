@@ -6,38 +6,43 @@ require 'vp/vcf_filter'
 
 class VariantPipeline < Pipeline
 
-  def realign options
-    input_filename = options[:input]
-    output_prefix = options[:output]
-    # output file from realign step
-    realign_bam_file = "#{output_prefix}.realigned.bam"
+  step :realign do
+    input :input
+    input :output
+    input :samtools
+    output :bam_file do |inputs|
+      "#{inputs[:output]}.realigned.bam"
+    end
+    run do |inputs, outputs|
+      input_filename = inputs[:input]
+      output_prefix = inputs[:output]
+      # output file from realign step
+      realign_bam_file = "#{output_prefix}.realigned.bam"
 
-    report "Starting realignment interval creation"
-    intervals_file = "#{output_prefix}.intervals"
-    params = {"-T" => "RealignerTargetCreator",
-              "-I" => input_filename,
-              "-o" => intervals_file}
+      report "Starting realignment interval creation"
+      intervals_file = "#{output_prefix}.intervals"
+      params = {"-T" => "RealignerTargetCreator",
+                "-I" => input_filename,
+                "-o" => intervals_file}
 
-    gatk = GATK.new options
-    gatk.execute params
+      gatk = GATK.new inputs
+      gatk.execute params
 
-    report "Starting realignment using intervals"
+      report "Starting realignment using intervals"
 
-    params = {"-T" => "IndelRealigner",
-              "-I" => input_filename,
-              "-targetIntervals" => intervals_file,
-              "-o" => realign_bam_file}
+      params = {"-T" => "IndelRealigner",
+                "-I" => input_filename,
+                "-targetIntervals" => intervals_file,
+                "-o" => realign_bam_file}
 
-    gatk.execute params
+      gatk.execute params
 
-    report "Starting index of realigned BAM with Samtools"
-    samtools_path = options[:samtools]
-    raise "ERROR: no samtools at: #{samtools_path}" unless File.exists? samtools_path
-    command = "#{samtools_path} index #{realign_bam_file}"
-    execute command
-    report "Outputfile: #{realign_bam_file}"
-    results = {:bam_file => realign_bam_file}
-    results
+      report "Starting index of realigned BAM with Samtools"
+      samtools_path = inputs[:samtools]
+      raise "ERROR: no samtools at: #{samtools_path}" unless File.exists? samtools_path
+      command = "#{samtools_path} index #{realign_bam_file}"
+      execute command
+    end
   end
 
   def recalibrate options
