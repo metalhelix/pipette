@@ -40,7 +40,7 @@ describe Step do
   it "should run its run block" do
     @step.run_block = lambda{ |input,output| "run_#{input}" }
     @step.run_block.should_not == nil
-    output = @step.run("input", "output").should == "run_input"
+    output = @step.call_run_block("input", "output").should == "run_input"
   end
 
   it "should have inputs and outputs populated in run" do
@@ -52,7 +52,7 @@ describe Step do
     @step.output :output_1 do |input| "#{input[:input_1]}_output" end
     output = @step.outputs_given(input)
     @step.run_block = lambda{ |input,output| "run_#{input[:input_1]}_#{input[:input_2]}_#{output[:output_1]}" }
-    output = @step.run(input,output)
+    output = @step.call_run_block(input,output)
     output.should == "run_111_222_111_output"
   end
 
