@@ -73,6 +73,6 @@ puts "creating directory: #{options[:output]}"
 FileUtils.mkdir_p prefix unless Dir.exists? options[:output]
 options[:output] = File.join(options[:output], options[:output])
 
-pipeline = VariantPipeline.new
+pipeline = VariantPipeline.pipeline
 pipeline.run options
 
