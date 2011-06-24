@@ -188,13 +188,13 @@ class Pipeline
 
   # Helper function that executes a command line command as well as
   # reporting this command to output
-  def execute command
+  def self.execute command
     report command
     result = system(command)
   end
 
   # Output status parameter as well as other logging information
-  def report status
+  def self.report status
     puts "#{Time.now} - " + status
   end
 end
