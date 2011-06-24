@@ -21,6 +21,7 @@ describe Pipeline do
       s1 = Step.new :step_1
       s1.input :input_1
       s1.output :output_1
+      s1.run_block = lambda { "run" }
       @p.steps << s1
       s2 = Step.new :step_2
       s2.input :output_1
@@ -29,6 +30,20 @@ describe Pipeline do
     end
     it "should have two steps" do
       @p.steps.size.should == 2
+    end
+    it "should find missing input parameters" do
+      input = {:not_input => "not"}
+      result = @p.missing_step_inputs input
+      result.should == [[:step_1, :input_1],[:step_2, :missing_1]]
+      content = capture(:stdout){ @p.run(input) }
+      content.should =~ /step_1.*missing.*input_1/
+      content.should =~ /step_2.*missing.*missing_1/
+      input = {:input_1 => "input"}
+      result = @p.missing_step_inputs input
+      result.should == [[:step_2, :missing_1]]
+      @p.steps[0].output :missing_1
+      result = @p.missing_step_inputs input
+      result.should == []
     end
   end
   describe "simple pipeline" do
