@@ -14,7 +14,7 @@ require 'rdoc'
 require 'rspec'
 
 # Load fixtures
-#load File.join(File.dirname(__FILE__), "fixtures", "pipe.thor")
+load File.join(File.dirname(__FILE__), "fixtures", "simple_pipeline.rb")
 
 RSpec.configure do |config|
   def capture(stream)
