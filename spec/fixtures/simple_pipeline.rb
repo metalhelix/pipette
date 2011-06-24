@@ -10,6 +10,7 @@ class SimplePipeline < Pipeline
 end
 
 class TwoStepPipeline < Pipeline
+  default_steps :step_1, :step_2
   step :step_1 do
     run do |inputs, outputs|
     end
