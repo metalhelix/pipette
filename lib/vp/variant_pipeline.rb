@@ -45,116 +45,137 @@ class VariantPipeline < Pipeline
     end
   end
 
-  def recalibrate options
-    input_filename = options[:input]
-    realign_bam_file = options[:bam_file]
-    output_prefix = options[:output]
+  step :recalibrate do
+    input :input
+    input :bam_file
+    input :output
+    output :bam_file do |input|"#{input[:output]}.realigned.recal.sorted.bam" end
+    run do |options, outputs|
+      input_filename = options[:input]
+      realign_bam_file = options[:bam_file]
+      output_prefix = options[:output]
 
-    cleaned_bam_file = "#{prefix}.realigned.recal.sorted.bam"
-    report "Starting recalibration"
-    covar_table_file = "#{output_prefix}.covariate_table.csv"
+      cleaned_bam_file = outputs[:bam_file]
+      report "Starting recalibration"
+      covar_table_file = "#{output_prefix}.covariate_table.csv"
 
-    params = {"-T" => "CountCovariates",
-              "-I" => input_filename,
-              "-recalFile" => covar_table_file,
-              "-cov" => ["ReadGroupcovariate", "QualityScoreCovariate", "CycleCovariate", "DinucCovariate"]}
-    gatk = GATK.new options
-    gatk.execute params
+      params = {"-T" => "CountCovariates",
+                "-I" => input_filename,
+                "-recalFile" => covar_table_file,
+                "-cov" => ["ReadGroupcovariate", "QualityScoreCovariate", "CycleCovariate", "DinucCovariate"]}
+      gatk = GATK.new options
+      gatk.execute params
 
-    recal_bam_file = "#{output_prefix}.realigned.recal.bam"
+      recal_bam_file = "#{output_prefix}.realigned.recal.bam"
 
-    params = {"-T" => "TableRecalibration",
-              "-I" => realign_bam_file,
-              "-recalFile" => covar_table_file,
-              "--out" => recal_bam_file}
-    gatk.execute params
+      params = {"-T" => "TableRecalibration",
+                "-I" => realign_bam_file,
+                "-recalFile" => covar_table_file,
+                "--out" => recal_bam_file}
+      gatk.execute params
 
 
-    report "Starting sort and index recalibrated BAM"
-    command = "samtools sort #{recal_bam_file} #{cleaned_bam_file}"
-    execute(command)
-    command = "samtools index #{cleaned_bam_file}"
-    execute(command)
+      report "Starting sort and index recalibrated BAM"
+      command = "samtools sort #{recal_bam_file} #{cleaned_bam_file}"
+      execute(command)
+      command = "samtools index #{cleaned_bam_file}"
+      execute(command)
 
-    report "Recalibration output: #{cleaned_bam_file}"
-    results = {:bam_file => cleaned_bam_file}
+      report "Recalibration output: #{cleaned_bam_file}"
+    end
   end
 
-  def call_snps options
-    variant_bam_file = options[:bam_file]
-    output_prefix = options[:output]
-
-    snps_vcf_file = "#{output_prefix}.snps.vcf"
-    report "Starting SNP calling"
-
-    params = {"-T" => "UnifiedGenotyper",
-              "-I" => variant_bam_file,
-              "-o" => snps_vcf_file,
-              "-stand_call_conf" => "30.0",
-              "-stand_emit_conf" => "30.0"}
-    gatk = GATK.new options
-    gatk.execute params
-    report "SNP Calling output: #{snps_vcf_file}"
-    results = {}
-    if options[:vcf_files]
-      results[:vcf_files] = options[:vcf_files]
-      results[:vcf_files] << snps_vcf_file
-    else
-      results[:vcf_files] = [snps_vcf_file]
+  step :call_snps do
+    input :bam_file
+    input :output
+    output :vcf_files do |input|
+      vcf_files = input[:vcf_files] ? input[:vcf_files] : []
+      vcf_files << "#{input[:output]}.snps.vcf"
+      vcf_files
     end
-    results
+    run do |inputs, outputs|
+      variant_bam_file = inputs[:bam_file]
+      output_prefix = inputs[:output]
+
+      snps_vcf_file = outputs[:vcf_files][-1]
+      report "Starting SNP calling"
+
+      params = {"-T" => "UnifiedGenotyper",
+                "-I" => variant_bam_file,
+                "-o" => snps_vcf_file,
+                "-stand_call_conf" => "30.0",
+                "-stand_emit_conf" => "30.0"}
+      gatk = GATK.new options
+      gatk.execute params
+      report "SNP Calling output: #{snps_vcf_file}"
+    end
   end
 
-  def call_indels options
-    variant_bam_file = options[:bam_file]
-    output_prefix = options[:output]
-    indels_vcf_file = "#{output_prefix}.indels.vcf"
-    report "Starting Indel calling"
-
-    params = {"-T" => "UnifiedGenotyper",
-              "-I" => variant_bam_file,
-              "-o" => indels_vcf_file,
-              "-glm" => "DINDEL",
-              "-stand_call_conf" => "30.0",
-              "-stand_emit_conf" => "30.0"}
-    gatk = GATK.new options
-    gatk.execute params
-    report "Indel calling output: #{indels_vcf_file}"
-    results = {}
-    if options[:vcf_files]
-      results[:vcf_files] = options[:vcf_files]
-      results[:vcf_files] << indels_vcf_file
-    else
-      results[:vcf_files] = [indels_vcf_file]
+  step :call_indels do
+    input :bam_file
+    input :output
+    output :vcf_files do |input|
+      vcf_files = input[:vcf_files] ? input[:vcf_files] : []
+      vcf_files << "#{input[:output]}.indels.vcf"
+      vcf_files
     end
-    results
+    run do |inputs, outputs|
+      variant_bam_file = inputs[:bam_file]
+      output_prefix = inputs[:output]
+      indels_vcf_file = outputs[:vcf_files][-1]
+      report "Starting Indel calling"
+
+      params = {"-T" => "UnifiedGenotyper",
+                "-I" => variant_bam_file,
+                "-o" => indels_vcf_file,
+                "-glm" => "DINDEL",
+                "-stand_call_conf" => "30.0",
+                "-stand_emit_conf" => "30.0"}
+      gatk = GATK.new options
+      gatk.execute params
+      report "Indel calling output: #{indels_vcf_file}"
+    end
   end
 
-  def filter options
-    vcf_files = options[:vcf_files]
-    output_files = []
-    vcf_files.each do |vcf_file|
-      output_file = vcf_file.append_filename ".filtered.vcf"
-      report "Filtering vcf file: #{vcf_file}"
-      VCFFilter.filter vcf_file, output_file
-      output_files << output_file
+  step :filter do
+    input :vcf_files
+    output :filtered_vcf_files do |input|
+      outputs = input[:vcf_files].collect {|vcf_file| vcf_file.append_filename ".filtered.vcf"}
+      outputs
     end
-    report "VCF filter output: #{output_files.join(", ")}"
-    results = {:vcf_files => output_files}
+
+    run do |inputs, outputs|
+      vcf_files = inputs[:vcf_files]
+      outputs[:filtered_vcf_files].each do |output_file|
+        VCFFilter.filter vcf_file, output_file
+      end
+    end
   end
 
-  def annotate options
-    vcf_files = options[:vcf_files]
-    output_files = []
-    vcf_files.each do |vcf_file|
-      report "Annotating #{vcf_file}"
-      annotator = Annotator.new
-      output_file = annotator.run(vcf_file, options)
-      output_files << output_file
+  step :annotate do
+    input :vcf_files
+    output :annotation_files do |input|
+      #TODO: this is the only step that cannot specify
+      #what the output file names will be given the input.
+      #perhaps use the results of the run and add them to
+      #the later inputs as well? then wouldn't need this
+      #block on outputs
+      outputs = input[:vcf_files].collect {|vcf| "#{vcf}.annotation.txt"}
+      outputs
     end
-    report "annotation output #{output_files.join(", ")}"
-    results = {:annotation_files => output_files}
-    results
+    run do |inputs, outputs|
+      vcf_files = inputs[:vcf_files]
+      output_files = []
+      vcf_files.each do |vcf_file|
+        report "Annotating #{vcf_file}"
+        annotator = Annotator.new
+        output_file = annotator.run(vcf_file, options)
+        output_files << output_file
+      end
+      report "annotation output #{output_files.join(", ")}"
+      results = {:annotation_files => output_files}
+      results
+    end
   end
 end
 
