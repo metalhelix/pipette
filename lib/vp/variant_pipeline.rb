@@ -50,10 +50,10 @@ class VariantPipeline < Pipeline
     input :bam_file
     input :output
     output :bam_file do |input|"#{input[:output]}.realigned.recal.sorted.bam" end
-    run do |options, outputs|
-      input_filename = options[:input]
-      realign_bam_file = options[:bam_file]
-      output_prefix = options[:output]
+    run do |inputs, outputs|
+      input_filename = inputs[:input]
+      realign_bam_file = inputs[:bam_file]
+      output_prefix = inputs[:output]
 
       cleaned_bam_file = outputs[:bam_file]
       report "Starting recalibration"
@@ -63,7 +63,7 @@ class VariantPipeline < Pipeline
                 "-I" => input_filename,
                 "-recalFile" => covar_table_file,
                 "-cov" => ["ReadGroupcovariate", "QualityScoreCovariate", "CycleCovariate", "DinucCovariate"]}
-      gatk = GATK.new options
+      gatk = GATK.new inputs
       gatk.execute params
 
       recal_bam_file = "#{output_prefix}.realigned.recal.bam"
@@ -105,7 +105,7 @@ class VariantPipeline < Pipeline
                 "-o" => snps_vcf_file,
                 "-stand_call_conf" => "30.0",
                 "-stand_emit_conf" => "30.0"}
-      gatk = GATK.new options
+      gatk = GATK.new inputs
       gatk.execute params
       report "SNP Calling output: #{snps_vcf_file}"
     end
@@ -131,7 +131,7 @@ class VariantPipeline < Pipeline
                 "-glm" => "DINDEL",
                 "-stand_call_conf" => "30.0",
                 "-stand_emit_conf" => "30.0"}
-      gatk = GATK.new options
+      gatk = GATK.new inputs
       gatk.execute params
       report "Indel calling output: #{indels_vcf_file}"
     end
@@ -169,7 +169,7 @@ class VariantPipeline < Pipeline
       vcf_files.each do |vcf_file|
         report "Annotating #{vcf_file}"
         annotator = Annotator.new
-        output_file = annotator.run(vcf_file, options)
+        output_file = annotator.run(vcf_file, inputs)
         output_files << output_file
       end
       report "annotation output #{output_files.join(", ")}"
