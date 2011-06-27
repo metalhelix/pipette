@@ -53,6 +53,18 @@ describe Pipeline do
     it "should have one step" do
       @simple.steps.size.should == 1
     end
+    it "should have nil as default steps" do
+      @simple.default_steps.should == nil
+    end
+    it "should be prepared to run all steps" do
+      @simple.run_steps.size.should == 1
+      @simple.run_steps[0].should == :step_1
+      inputs = {:steps => []}
+      @simple.run_steps(inputs).size.should == 0
+      inputs = {:steps => [:step_1]}
+      @simple.run_steps.size.should == 1
+      @simple.run_steps[0].should == :step_1
+    end
     it "should have input and output in its step" do
       @simple.steps[0].inputs.size.should == 1
       @simple.steps[0].inputs.include?(:input_1).should == true
@@ -63,6 +75,11 @@ describe Pipeline do
       inputs = {:input_1 => 'input'}
       result = @simple.run inputs
       result.should == ["run_input_input_out"]
+    end
+    it "should not run its step if no steps are to be run" do
+      inputs = {:steps => [], :input_1 => 'input'}
+      result = @simple.run inputs
+      result.should == []
     end
   end
   describe "two step pipeline" do
