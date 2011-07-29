@@ -52,10 +52,12 @@ class Pipeline
   # by the user.
   def run inputs
     run_step_names = run_steps inputs
+    puts "running steps: #{run_step_names.join(", ")}"
     missing = missing_step_inputs inputs
     output_missing(missing) and return unless missing.empty?
     results = []
     @steps.each do |step|
+      puts "step: #{step.name}"
       step_output = step.outputs_given inputs
       results << step.call_run_block(inputs,step_output) if run_step_names.include? step.name
       inputs.merge! step_output
@@ -93,12 +95,16 @@ class Pipeline
 
   def run_steps inputs = nil
     all_step_names = @steps.collect {|s| s.name}
+    puts "all steps    : #{all_step_names.join(", ")}"
     run_step_names = default_steps
     if inputs and inputs[:steps]
-      run_step_names = all_step_names.select {|s| inputs[:steps].include? s}
+      input_steps = inputs[:steps].collect {|s| s.strip.downcase.to_sym}
+      puts "input options: #{input_steps.join(', ')}"
+      run_step_names = all_step_names.select {|s| input_steps.include? s}
     end
 
     if run_step_names.nil?
+      puts "defaulting to all steps"
       run_step_names = all_step_names
     end
 

@@ -70,9 +70,10 @@ puts "performing steps: #{steps.join(",")}"
 
 puts "creating directory: #{options[:output]}"
 
-FileUtils.mkdir_p prefix unless Dir.exists? options[:output]
+FileUtils.mkdir_p options[:output] unless Dir.exists? options[:output]
 options[:output] = File.join(options[:output], options[:output])
 
+puts "running variant pipeline"
 pipeline = VariantPipeline.pipeline
 pipeline.run options
 
