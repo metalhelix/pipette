@@ -49,7 +49,13 @@ class VariantPipeline < Pipeline
     input :input
     input :bam_file
     input :output
-    output :bam_file do |input|"#{input[:output]}.realigned.recal.sorted.bam" end
+    output :bam_file do |input|
+      if input[:recalibrate]
+        "#{input[:output]}.realigned.recal.sorted.bam"
+      else
+        input[:bam_file]
+      end
+    end
     run do |inputs, outputs|
       input_filename = inputs[:input]
       realign_bam_file = inputs[:bam_file]
@@ -128,7 +134,7 @@ class VariantPipeline < Pipeline
       params = {"-T" => "UnifiedGenotyper",
                 "-I" => variant_bam_file,
                 "-o" => indels_vcf_file,
-                "-glm" => "DINDEL",
+                "-glm" => "INDEL",
                 "-stand_call_conf" => "30.0",
                 "-stand_emit_conf" => "30.0"}
       gatk = GATK.new inputs
@@ -146,7 +152,8 @@ class VariantPipeline < Pipeline
 
     run do |inputs, outputs|
       vcf_files = inputs[:vcf_files]
-      outputs[:filtered_vcf_files].each do |output_file|
+      outputs[:filtered_vcf_files].each_with_index do |output_file,index|
+        vcf_file = vcf_files[index]
         VCFFilter.filter vcf_file, output_file
       end
     end
