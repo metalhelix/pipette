@@ -45,6 +45,22 @@ describe Pipeline do
       result = @p.missing_step_inputs input
       result.should == []
     end
+
+    it "should have default running steps by default" do
+      input = {:input_1 => "in"}
+      @p.run_steps(input).size.should == 2
+      @p.default_steps = [:step_1]
+      @p.run_steps(input).size.should == 1
+      @p.run_steps(input)[0].should == :step_1
+    end
+
+    it "should take specified steps as input" do
+      input = {:input_1 => "in", :steps => "step_2"}
+      @p.run_steps(input).size.should == 1
+      @p.run_steps(input)[0].should == :step_2
+      input = {:input_1 => "in", :steps => ["step_1","step_2"]}
+      @p.run_steps(input).size.should == 2
+    end
   end
   describe "simple pipeline" do
     before(:each) do
