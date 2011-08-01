@@ -59,8 +59,12 @@ class Pipeline
     @steps.each do |step|
       puts "step: #{step.name}"
       step_output = step.outputs_given inputs
-      results << step.call_run_block(inputs,step_output) if run_step_names.include? step.name
-      inputs.merge! step_output
+      if run_step_names.include? step.name
+        results << step.call_run_block(inputs,step_output)
+        inputs.merge! step_output
+      else
+        inputs.merge! step_output
+      end
     end
     results
   end
@@ -98,8 +102,8 @@ class Pipeline
     puts "all steps    : #{all_step_names.join(", ")}"
     run_step_names = default_steps
     if inputs and inputs[:steps]
-      input_steps = inputs[:steps].collect {|s| s.strip.downcase.to_sym}
-      puts "input options: #{input_steps.join(', ')}"
+      input_steps = [inputs[:steps]].flatten.collect {|s| s.strip.downcase.to_sym}
+      puts "input steps options: #{input_steps.join(', ')}"
       run_step_names = all_step_names.select {|s| input_steps.include? s}
     end
 
