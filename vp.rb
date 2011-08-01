@@ -27,7 +27,7 @@ OptionParser.new do |o|
   o.on('--snpeff_config CONFIG_FILE', String, "Specify snppEff config file location") {|b| options[:snpeff_config] = b}
   o.on('--samtools BIN_PATH', String, "Specify location of samtools") {|b| options[:samtools] = b}
   o.on('-q', '--quiet', 'Turn off some output') {|b| options[:verbose] = !b}
-  o.on('-s', "--steps STEPS" , Array, 'Specify only which steps of the pipeline should be executed') {|b| options[:steps] = b.collect {|step| step.to_sym} }
+  o.on('-s', "--steps STEPS" , Array, 'Specify only which steps of the pipeline should be executed') {|b| options[:steps] = b.collect {|step| step} }
   o.on('-y', '--yaml YAML_FILE', String, 'Yaml configuration file that can be used to load options. Command line options will trump yaml options') {|b| options.merge!(Hash[YAML::load(open(b)).map {|k,v| [k.to_sym, v]}]) }
   o.on('-h', '--help', 'Displays help screen, then exits') {puts o; exit}
   o.parse!
