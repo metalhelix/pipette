@@ -108,5 +108,15 @@ describe Pipeline do
     it "should have two default steps" do
       @two_step.default_steps.size.should == 2
     end
+    it "should have correct output when all steps are run" do
+      inputs = {:input_1 => 'aaa'}
+      result = @two_step.run inputs
+      result.should == ["step_1_aaa","step_2_aaa_out"]
+    end
+    it "should still have output from skipped steps" do
+      inputs = {:steps => "step_2", :input_1 => 'aaa'}
+      result = @two_step.run inputs
+      result.should == ["step_2_aaa_out"]
+    end
   end
 end

@@ -160,18 +160,18 @@ class VariantPipeline < Pipeline
   end
 
   step :annotate do
-    input :vcf_files
+    input :filtered_vcf_files
     output :annotation_files do |input|
       #TODO: this is the only step that cannot specify
       #what the output file names will be given the input.
       #perhaps use the results of the run and add them to
       #the later inputs as well? then wouldn't need this
       #block on outputs
-      outputs = input[:vcf_files].collect {|vcf| "#{vcf}.annotation.txt"}
+      outputs = input[:filtered_vcf_files].collect {|vcf| "#{vcf}.annotation.txt"}
       outputs
     end
     run do |inputs, outputs|
-      vcf_files = inputs[:vcf_files]
+      vcf_files = inputs[:filtered_vcf_files]
       output_files = []
       vcf_files.each do |vcf_file|
         report "Annotating #{vcf_file}"
