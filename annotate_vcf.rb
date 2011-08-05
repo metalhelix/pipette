@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
-$:.unshift(File.join(File.dirname(__FILE__), "lib", "vp"))
+$:.unshift(File.join(File.dirname(__FILE__), "lib"))
 
-require 'annotator'
+require 'vp/annotator'
 require 'benchmark'
 require 'optparse'
 require 'yaml'
@@ -21,7 +21,7 @@ end
 
 
 time = Benchmark.measure do
-  annotator = Annotator.new $options
-  annotator.run $options[:input]
+  annotator = Annotator.new
+  output_file = annotator.run($options[:input], $options)
 end
 puts time
