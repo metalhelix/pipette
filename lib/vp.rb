@@ -1,3 +1,6 @@
-require 'vp/utils.rb'
+require 'vp/utils'
+require 'vp/step'
 require 'vp/pipeline'
-require 'vp/variant_pipeline'
+
+require 'vp/tools'
+require 'vp/pipelines'

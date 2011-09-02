@@ -26,3 +26,19 @@ class TwoStepPipeline < Pipeline
     end
   end
 end
+
+require 'optparse'
+class OptionsPipeline < Pipeline
+  options do
+    opts = OptionParser.new do |o|
+      o.on('-i', '--input BAM_FILE', 'REQUIRED - Input BAM file to call SNPs on') {|b| options[:input] = b}
+      o.on('-r', '--reference FA_FILE', 'REQUIRED - Reference Fasta file for genome') {|b| options[:reference] = b}
+      o.on('-o', '--output PREFIX', 'Output prefix to use for generated files') {|b| options[:output] = b}
+      o.on('-h', '--help', 'Displays help screen, then exits') {puts o; exit}
+    end
+    opts
+  end
+  step :test_input do
+
+  end
+end

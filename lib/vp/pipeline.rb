@@ -1,12 +1,25 @@
+require 'optparse'
+require 'yaml'
+require 'fileutils'
+
 require 'vp/step'
-
 class Pipeline
-  attr_accessor :steps, :default_steps
+  attr_accessor :steps, :default_steps, :options, :options_parser
 
+  # DSL method for defining a step
+  # takes the name of the step and the
+  # block to evaluate to become a step
   def self.step name, &block
     current_step = Step.new(name)
     current_step.evaluate(&block)
     pipeline.steps << current_step
+  end
+
+  # DSL method for defining an options parser
+  # takes a block which should return an OptionsParser
+  # instance to parse with the input arguments
+  def self.options &block
+    pipeline.options_parser = pipeline.evaluate(&block)
   end
 
   # Returns instance of pipeline.
@@ -38,6 +51,31 @@ class Pipeline
   def initialize
     @steps = []
     @default_steps = nil
+    @options = {}
+    @options_parser = nil
+  end
+
+  def default_options
+    default_options_file = File.expand_path(File.join(File.dirname(__FILE__), "config", "default.yml"))
+    if File.exists? default_options_file
+      self.options = Hash[YAML::load(open(default_options_file)).map {|k,v| [k.to_sym, v]}]
+    else
+      puts "WARNING: no default configuration found in #{default_options_file}"
+    end
+  end
+
+  def evaluate &block #:nodoc:
+    # trick from
+    # http://www.dan-manges.com/blog/ruby-dsls-instance-eval-with-delegation
+    @self_before_instance_eval = eval "self", block.binding
+    instance_eval(&block)
+  end
+
+  def method_missing(method, *args, &block) #:nodoc:
+    # trick from
+    # http://www.dan-manges.com/blog/ruby-dsls-instance-eval-with-delegation
+    # see above 'evaluate' as well
+    @self_before_instance_eval.send method, *args, &block
   end
 
   # runs the steps of the pipeline with the
@@ -50,7 +88,7 @@ class Pipeline
   # ==== Parameters
   # inputs<Hash>:: Initial set of inputs provided
   # by the user.
-  def run inputs
+  def run inputs = {}
     run_step_names = run_steps inputs
     puts "running steps: #{run_step_names.join(", ")}"
     missing = missing_step_inputs inputs
@@ -67,6 +105,13 @@ class Pipeline
       end
     end
     results
+  end
+
+  def parse_input input_args
+    if self.options_parser
+      self.options_parser.parse!(input_args)
+    end
+    options
   end
 
   # Returns an array of arrays, one for

@@ -119,4 +119,16 @@ describe Pipeline do
       result.should == ["step_2_aaa_out"]
     end
   end
+
+  describe "pipeline with options" do
+    before(:each) do
+      @options_pipeline = OptionsPipeline.pipeline
+    end
+    it "should get options from options section" do
+      parser = @options_pipeline.options_parser
+      args = ["--input", "da/da/da"]
+      @options_pipeline.parse_input args
+      @options_pipeline.options[:input].should == "da/da/da"
+    end
+  end
 end
