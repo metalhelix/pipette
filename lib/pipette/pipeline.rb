@@ -92,7 +92,10 @@ class Pipeline
     run_step_names = run_steps inputs
     puts "running steps: #{run_step_names.join(", ")}"
     missing = missing_step_inputs inputs
-    output_missing(missing) and return unless missing.empty?
+    unless missing.empty?
+      output_missing(missing)
+      return
+    end
     results = []
     @steps.each do |step|
       puts "step: #{step.name}"
@@ -166,9 +169,11 @@ class Pipeline
   # missing<Array>:: Array of arrays of missing parameters
   # for each step
   def output_missing(missing)
-    puts "ERROR: Missing input parameters for steps"
-    output = missing.collect {|step, miss| "#{step} is missing #{miss}"}
+    puts ""
+    puts "ERROR: Missing input parameters for steps:"
+    output = missing.collect {|step, miss| "  #{step} is missing #{miss}"}
     output.each {|o| puts o}
+    puts ""
   end
 
   # Helper function that executes a command line command as well as
