@@ -15,28 +15,7 @@ if !pipeline.options[:output]
   pipeline.options[:output] = output_prefix
 end
 
-pipeline.options[:samtools] ||= %x[which samtools].chomp
-
-file_options = [:reference, :gatk, :snpeff, :snpeff_config, :samtools]
-file_options.each {|opt| pipeline.options[opt] = File.expand_path(pipeline.options[opt])}
-
-puts "options used:"
-pipeline.options.each do |option, value|
-  puts "#{option} => #{value}"
-end
-
 steps = pipeline.options[:steps] ? pipeline.options[:steps].collect {|step| step.to_sym} : nil
-
-# ---------------
-# MAIN PROGRAM --
-# ---------------
-
-
-# put analysis in its own sub-directory
-output_dir = File.dirname(pipeline.options[:output])
-puts "creating directory: #{output_dir}"
-
-FileUtils.mkdir_p output_dir unless Dir.exists? output_dir
 
 pipeline.run
 

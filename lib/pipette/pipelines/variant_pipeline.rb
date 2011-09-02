@@ -14,6 +14,8 @@ class VariantPipeline < Pipeline
       o.on('--gatk JAR_FILE', String, "Specify GATK installation") {|b| options[:gatk] = b}
       o.on('--snpeff JAR_FILE', String, "Specify snppEff Jar location") {|b| options[:snpeff] = b}
       o.on('--snpeff_config CONFIG_FILE', String, "Specify snppEff config file location") {|b| options[:snpeff_config] = b}
+
+      options[:samtools] = %x[which samtools].chomp
       o.on('--samtools BIN_PATH', String, "Specify location of samtools") {|b| options[:samtools] = b}
       o.on('-q', '--quiet', 'Turn off some output') {|b| options[:verbose] = !b}
       o.on('-s', "--steps STEPS" , Array, 'Specify only which steps of the pipeline should be executed') {|b| options[:steps] = b.collect {|step| step} }
@@ -34,6 +36,17 @@ class VariantPipeline < Pipeline
       if inputs[:recalibrate]
         raise "ERROR covariate file not found at:#{inputs[:recalibrate]}." unless File.exists? inputs[:recalibrate]
       end
+    end
+  end
+
+  step :setup do
+    run do |inputs, outputs|
+      file_options = [:reference, :gatk, :snpeff, :snpeff_config, :samtools]
+      file_options.each {|opt| inputs[opt] = File.expand_path(inputs[opt])}
+
+      output_dir = File.dirname(inputs[:output])
+      puts "creating directory: #{output_dir}"
+      FileUtils.mkdir_p output_dir unless Dir.exists? output_dir
     end
   end
 

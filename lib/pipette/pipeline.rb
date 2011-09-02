@@ -89,6 +89,8 @@ class Pipeline
   # inputs<Hash>:: Initial set of inputs provided
   # by the user.
   def run inputs = {}
+    inputs.merge!(self.options)
+    output_inputs(inputs)
     run_step_names = run_steps inputs
     puts "running steps: #{run_step_names.join(", ")}"
     missing = missing_step_inputs inputs
@@ -161,6 +163,13 @@ class Pipeline
     end
 
     run_step_names
+  end
+
+  def output_inputs(inputs)
+    puts "inputs used:"
+    inputs.each do |input, value|
+      puts "#{input} => #{value}"
+    end
   end
 
   # Prints the provided list of missing input
