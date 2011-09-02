@@ -2,7 +2,7 @@
 
 $:.unshift(File.join(File.dirname(__FILE__), "lib"))
 
-require 'vp'
+require 'pipette'
 
 puts "running variant pipeline"
 pipeline = VariantPipeline.pipeline
@@ -18,7 +18,7 @@ end
 pipeline.options[:samtools] ||= %x[which samtools].chomp
 
 file_options = [:reference, :gatk, :snpeff, :snpeff_config, :samtools]
-file_options.each {|opt| pipeline.options[opt] = File.expand_path(options[opt])}
+file_options.each {|opt| pipeline.options[opt] = File.expand_path(pipeline.options[opt])}
 
 puts "options used:"
 pipeline.options.each do |option, value|
@@ -31,7 +31,6 @@ steps = pipeline.options[:steps] ? pipeline.options[:steps].collect {|step| step
 # MAIN PROGRAM --
 # ---------------
 
-puts "performing steps: #{steps.join(",")}"
 
 # put analysis in its own sub-directory
 output_dir = File.dirname(pipeline.options[:output])

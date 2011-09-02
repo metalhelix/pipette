@@ -1,5 +1,5 @@
-require 'pipette/snpeff'
-require 'pipette/snpeff_summarizer'
+require 'pipette/tools/snpeff'
+require 'pipette/tools/snpeff_summarizer'
 
 class Annotator
   def run input_file, options

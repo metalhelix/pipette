@@ -1,5 +1,5 @@
 
-require 'pipette/vcf'
+require 'pipette/tools/vcf'
 
 class VCFFilter
   def self.filter input, output
