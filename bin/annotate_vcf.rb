@@ -2,7 +2,7 @@
 
 $:.unshift(File.join(File.dirname(__FILE__), "lib"))
 
-require 'vp/annotator'
+require 'pipette/annotator'
 require 'benchmark'
 require 'optparse'
 require 'yaml'

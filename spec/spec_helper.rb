@@ -7,7 +7,7 @@ SimpleCov.start do
 end
 
 $:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
-require 'vp'
+require 'pipette'
 require 'stringio'
 
 require 'rdoc'

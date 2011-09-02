@@ -2,7 +2,7 @@ require 'optparse'
 require 'yaml'
 require 'fileutils'
 
-require 'vp/step'
+require 'pipette/step'
 class Pipeline
   attr_accessor :steps, :default_steps, :options, :options_parser
 

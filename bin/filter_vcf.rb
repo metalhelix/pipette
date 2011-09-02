@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-$:.unshift(File.join(File.dirname(__FILE__), "lib", "vp"))
+$:.unshift(File.join(File.dirname(__FILE__), "lib", "pipette"))
 puts $:.inspect
 vcf_file = ARGV[0]
 out_file = ARGV[1]

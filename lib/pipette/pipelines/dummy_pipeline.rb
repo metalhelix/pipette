@@ -1,4 +1,4 @@
-require 'vp/pipeline'
+require 'pipette/pipeline'
 
 class DummyPipeline < Pipeline
   options do

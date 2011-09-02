@@ -1,12 +1,39 @@
-h1. Variant calling and annotation pipeline
+h1. Pipette: A framework for Bioinformatic pipelines
 
-Script to facilitate the automation of finding variants (SNPs/Indels) in an aligned BAM file.
+Pipette is a framework to quickly and easily build a pipeline for multi-step processing of input. It is especially suited for Bioinformatic applications.
 
-h2. Prerequisites
+Pipette also contains a collection of pipelines created in Pipette. Current Pipette Pipelines:
+* variant: a variant calling and annotation pipeline.
+
+h3. How it works
+
+Pipette pipelines are made of steps. Each step is independent of other steps. Each step defines 2 attributes for itself:
+* input: The input parameters the step needs to run.
+* output: The parameters the step will generate after running.
+
+Pipette chains these steps together, passing in input parameters and collecting output parameters automatically. 
+
+To create a new Pipeline in Pipette, simply sub-class the Pipeline class.
+
+h3. Tools
+
+Pipette also includes a number of tools that perform the bulk of the processing for each step. These tools are simple wrappers for existing bioinformatic programs and also custom processing.
+
+h3. Requirements
+
+Pipette is written in Ruby. Also, various tools are expected to be installed if used. See below for required tools for each pipeline.
+
+h1. Pipette Pipelines:
+
+h2. Variant calling and annotation pipeline
+
+Pipeline to facilitate the automation of finding variants (SNPs/Indels) in an aligned BAM file.
+
+h3. Prerequisites
 
 Currently, this pipeline does not perform the initial alignment step. This pipeline starts with an indexed BAM file and a reference genome.
 
-h2. Requirements
+h3. Requirements
 
 This pipeline wraps the calling of a number of external tools to perform the variant calling and annotation. 
 
@@ -16,11 +43,7 @@ h3. Current Applications Expected by vp:
 * "samtools":http://samtools.sourceforge.net/ - for indexing output from GATK
 * "snpEff":http://snpeff.sourceforge.net/ - for annotation
 
-h3. Ruby Environment
-
-variant_pipeline tested using ruby 1.9.2. May work with 1.8.7, but this has not been confirmed.
-
-h2. Configuration Options
+h3. Configuration Options
 
 <pre>
 ./variant_pipeline.rb -h
@@ -42,7 +65,7 @@ Usage: variant_pipeline [options]
     -h, --help                       Displays help screen, then exits
 </pre>
 
-h2. Run Example
+h3. Run Example
 
 The easiest way to run the variant pipeline is to create a config yaml file to store most of the required configurations and then run using the -y flag.
 
@@ -61,7 +84,6 @@ snpeff_config: "~/tools/snpEff/snpEff.config"
 Then simply run variant_pipeline with the -y flag:
 
 <pre>
-./variant_pipeline/variant_pipeline.rb -y ./sample_config.yml
+./variant_pipeline/pipette.rb variant -y ./sample_config.yml
 </pre>
 
-And let the magic begin!

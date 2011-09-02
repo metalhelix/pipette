@@ -1,5 +1,5 @@
-require 'vp/pipeline'
-require 'vp/tools'
+require 'pipette/pipeline'
+require 'pipette/tools'
 
 class VariantPipeline < Pipeline
 

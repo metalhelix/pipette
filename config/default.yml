@@ -1,4 +1,4 @@
-output: "vp_out"
+output: "pipette_out"
 reference: "/n/facility/Bioinformatics/analysis/Data/bwa/genomes/dmel/Drosophila_melanogaster.BDGP.4.54.dna.fasta"
 recalibrate: false
 verbose: true

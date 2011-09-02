@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require "./variant_pipeline/lib/vp/vcf.rb"
+require "./variant_pipeline/lib/pipette/vcf.rb"
 
 csv_filename = ARGV[0]
 vcf_filename = ARGV[1]
