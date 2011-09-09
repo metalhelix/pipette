@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
-$:.unshift(File.join(File.dirname(__FILE__), "lib"))
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
 
-require 'pipette/annotator'
+require 'pipette/tools/annotator'
 require 'benchmark'
 require 'optparse'
 require 'yaml'
