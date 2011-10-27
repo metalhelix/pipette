@@ -32,6 +32,7 @@ class VariantPipeline < Pipeline
       raise "ERROR - reference Fasta file required. Use -r parameter or -h for more info" unless inputs[:reference]
       raise "ERROR GATK JAR not found at:#{inputs[:gatk]}." unless File.exists? inputs[:gatk]
       raise "ERROR samtools not found at:#{inputs[:samtools]}." unless File.exists? inputs[:samtools]
+      raise "ERROR snpeff not found at:#{inputs[:snpeff]}." unless inputs[:snpeff] and File.exists? inputs[:snpeff]
       raise "ERROR Reference file not found at:#{inputs[:reference]}." unless File.exists? inputs[:reference]
       raise "ERROR Input file not found at:#{inputs[:input]}" unless File.exists? inputs[:input]
       if inputs[:recalibrate]

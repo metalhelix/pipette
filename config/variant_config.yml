@@ -4,7 +4,7 @@ recalibrate: false
 verbose: true
 cores: 4
 gatk: "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK.jar"
-snpeff: "/n/site/inst/Linux-x86_64/bioinfo/snpEff/current/snpEff.jar"
-snpeff_config: "/n/site/inst/Linux-x86_64/bioinfo/snpEff/current/snpEff.config"
+snpeff: "/n/site/inst/Linux-x86_64/bioinfo/snpeff/current/snpEff.jar"
+snpeff_config: "/n/site/inst/Linux-x86_64/bioinfo/snpeff/current/snpEff.config"
 samtools: "/n/site/inst/Linux-x86_64/bioinfo/bin/samtools"
 steps: [check_input, realign, call_snps, call_indels, filter, annotate]
