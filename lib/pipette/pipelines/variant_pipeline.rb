@@ -37,6 +37,11 @@ class VariantPipeline < Pipeline
       if inputs[:recalibrate]
         raise "ERROR covariate file not found at:#{inputs[:recalibrate]}." unless File.exists? inputs[:recalibrate]
       end
+      report "creating output directory if needed"
+      output_dir = File.expand_path(File.dirname(inputs[:output]))
+      command = "mkdir -p #{output_dir}"
+      execute command
+      report "checking inputs complete"
     end
   end
 
