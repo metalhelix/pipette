@@ -4,7 +4,7 @@ require 'fileutils'
 
 require 'pipette/step'
 class Pipeline
-  attr_accessor :steps, :default_steps, :options, :options_parser
+  attr_accessor :name, :steps, :default_steps, :options, :options_parser
 
   # DSL method for defining a step
   # takes the name of the step and the
@@ -13,6 +13,10 @@ class Pipeline
     current_step = Step.new(name)
     current_step.evaluate(&block)
     pipeline.steps << current_step
+  end
+
+  def self.name name
+    pipeline.name = name
   end
 
   # DSL method for defining an options parser
@@ -49,6 +53,7 @@ class Pipeline
   end
 
   def initialize
+    @name = "default"
     @steps = []
     @default_steps = nil
     @options = {}
@@ -56,7 +61,7 @@ class Pipeline
   end
 
   def default_options
-    default_options_file = File.expand_path(File.join(File.dirname(__FILE__), "..", "..", "config", "default.yml"))
+    default_options_file = File.expand_path(File.join(File.dirname(__FILE__), "..", "..", "config", "#{self.name}_config.yml"))
     if File.exists? default_options_file
       self.options = Hash[YAML::load(open(default_options_file)).map {|k,v| [k.to_sym, v]}]
     else
