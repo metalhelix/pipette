@@ -1,0 +1,10 @@
+reference: "/scratch/jfv/mak_snp_analysis/ensembl/ce_ws210/genome.fa"
+recalibrate: false
+verbose: true
+annotate: "ce.WS210.60"
+cores: 4
+gatk: "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK.jar"
+snpeff: "/n/site/inst/Linux-x86_64/bioinfo/snpeff/current/snpEff.jar"
+snpeff_config: "/n/site/inst/Linux-x86_64/bioinfo/snpeff/current/snpEff.config"
+samtools: "/n/site/inst/Linux-x86_64/bioinfo/bin/samtools"
+steps: [realign, call_snps, call_indels, filter, annotate]

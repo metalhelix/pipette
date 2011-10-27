@@ -3,7 +3,7 @@ reference: "/n/facility/Bioinformatics/analysis/Data/bwa/genomes/dmel/Drosophila
 recalibrate: false
 verbose: true
 cores: 4
-gatk: "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK-1.0.5315/GenomeAnalysisTK.jar"
+gatk: "/n/site/inst/Linux-x86_64/bioinfo/GATK/GenomeAnalysisTK.jar"
 snpeff: "/n/site/inst/Linux-x86_64/bioinfo/snpEff/current/snpEff.jar"
 snpeff_config: "/n/site/inst/Linux-x86_64/bioinfo/snpEff/current/snpEff.config"
 samtools: "/n/site/inst/Linux-x86_64/bioinfo/bin/samtools"

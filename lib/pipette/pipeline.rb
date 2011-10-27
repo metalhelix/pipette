@@ -56,7 +56,7 @@ class Pipeline
   end
 
   def default_options
-    default_options_file = File.expand_path(File.join(File.dirname(__FILE__), "config", "default.yml"))
+    default_options_file = File.expand_path(File.join(File.dirname(__FILE__), "..", "..", "config", "default.yml"))
     if File.exists? default_options_file
       self.options = Hash[YAML::load(open(default_options_file)).map {|k,v| [k.to_sym, v]}]
     else
