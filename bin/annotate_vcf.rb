@@ -8,8 +8,8 @@ require 'optparse'
 require 'yaml'
 
 $options = {}
-$options[:snpeff] = "/n/site/inst/Linux-x86_64/bioinfo/snpEff/current/snpEff.jar"
-$options[:snpeff_config] = "/n/site/inst/Linux-x86_64/bioinfo/snpEff/current/snpEff.config"
+$options[:snpeff] = "/n/site/inst/Linux-x86_64/bioinfo/snpeff/current/snpEff.jar"
+$options[:snpeff_config] = "/n/site/inst/Linux-x86_64/bioinfo/snpeff/current/snpEff.config"
 $options[:annotate] = "dm5.34"
 
 OptionParser.new do |o|
