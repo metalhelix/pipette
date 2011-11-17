@@ -28,7 +28,7 @@ class SnpEff
     stats_filename = base_name + ".snpeff.summary.html"
     puts "Starting annotation on #{vcf_filename}"
     command = "java -Xmx4g -jar #{jar_path} -c #{config_path}"
-    command += " -no-downstream -no-upstream -ud 0 -vcf4"
+    command += " -no-downstream -no-upstream -ud 0"
     command += " -stats #{stats_filename}"
     command += " #{database} #{vcf_filename} > #{output_filename}"
 
