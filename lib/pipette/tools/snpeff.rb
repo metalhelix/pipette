@@ -1,3 +1,4 @@
+require 'fileutils'
 
 class SnpEff
   def initialize
@@ -26,14 +27,21 @@ class SnpEff
     base_name = vcf_filename.split(".")[0..-2].join(".")
     output_filename = base_name + ".snpeff.txt"
     stats_filename = base_name + ".snpeff.summary.html"
+    output_filename = File.expand_path(output_filename)
+    stats_filename = File.expand_path(stats_filename)
+    vcf_filename = File.expand_path(vcf_filename)
+    
     puts "Starting annotation on #{vcf_filename}"
-    command = "java -Xmx4g -jar #{jar_path} -c #{config_path}"
+    command = "java -Xmx4g -jar #{(jar_path)}"
+    command += " -c #{config_path}"
     command += " -no-downstream -no-upstream -ud 0"
     command += " -stats #{stats_filename}"
     command += " #{database} #{vcf_filename} > #{output_filename}"
 
     puts command if options[:verbose]
+    # FileUtils.cd File.dirname(jar_path) do
     system(command)
+    # end
     results = {:snpeff_output => output_filename, :snpeff_summary => stats_filename}
     results
   end
