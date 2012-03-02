@@ -1,12 +1,14 @@
 #!/usr/bin/env ruby
 
-$:.unshift(File.join(File.dirname(__FILE__), "lib", "pipette"))
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib", "pipette", "tools"))
 puts $:.inspect
 vcf_file = ARGV[0]
 out_file = ARGV[1]
 raise "ERROR: usage: variant_filter [VCF_FILE] [OUTPUT_FILE" unless vcf_file && out_file
 raise "ERROR: no vcf file found at: #{vcf_file}" unless File.exists? vcf_file
 
+require 'pipette'
 require 'vcf_filter'
 require 'benchmark'
 
