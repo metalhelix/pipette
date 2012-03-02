@@ -12,6 +12,7 @@ class VariantPipeline < Pipeline
       o.on('-j', '--cores NUM', "Specify number of cores to run GATK on. Default: #{options[:cores]}") {|b| options[:cores] = b.to_i}
       o.on('-c', '--recalibrate COVARIATE_FILE', "If provided, recalibration will occur using input covariate file. Default: recalibration not performed") {|b| options[:recalibrate] = b}
       o.on('-a', '--annotate GENOME', 'Annotate the SNPs and Indels using Ensembl based on input GENOME. Example Genome: FruitFly') {|b| options[:annotate] = b}
+      o.on('--intervals INTERVALS', String, "Specify GATK intervals or intervals file") {|b| options[:intervals] = b}
       o.on('--gatk JAR_FILE', String, "Specify GATK installation") {|b| options[:gatk] = b}
       o.on('--snpeff JAR_FILE', String, "Specify snppEff Jar location") {|b| options[:snpeff] = b}
       o.on('--snpeff_config CONFIG_FILE', String, "Specify snppEff config file location") {|b| options[:snpeff_config] = b}
@@ -76,6 +77,10 @@ class VariantPipeline < Pipeline
                 "-I" => input_filename,
                 "-o" => intervals_file}
 
+      if inputs[:intervals]
+        params["-L"] = inputs[:intervals]
+      end
+
       gatk = GATK.new inputs
       gatk.execute params
 
@@ -85,6 +90,10 @@ class VariantPipeline < Pipeline
                 "-I" => input_filename,
                 "-targetIntervals" => intervals_file,
                 "-o" => realign_bam_file}
+
+      if inputs[:intervals]
+        params["-L"] = inputs[:intervals]
+      end
 
       gatk.execute params
 
@@ -120,6 +129,11 @@ class VariantPipeline < Pipeline
                 "-I" => input_filename,
                 "-recalFile" => covar_table_file,
                 "-cov" => ["ReadGroupcovariate", "QualityScoreCovariate", "CycleCovariate", "DinucCovariate"]}
+
+      if inputs[:intervals]
+        params["-L"] = inputs[:intervals]
+      end
+
       gatk = GATK.new inputs
       gatk.execute params
 
@@ -129,8 +143,12 @@ class VariantPipeline < Pipeline
                 "-I" => realign_bam_file,
                 "-recalFile" => covar_table_file,
                 "--out" => recal_bam_file}
-      gatk.execute params
 
+      if inputs[:intervals]
+        params["-L"] = inputs[:intervals]
+      end
+
+      gatk.execute params
 
       report "Starting sort and index recalibrated BAM"
       command = "samtools sort #{recal_bam_file} #{cleaned_bam_file}"
@@ -162,6 +180,11 @@ class VariantPipeline < Pipeline
                 "-o" => snps_vcf_file,
                 "-stand_call_conf" => "30.0",
                 "-stand_emit_conf" => "30.0"}
+
+      if inputs[:intervals]
+        params["-L"] = inputs[:intervals]
+      end
+
       gatk = GATK.new inputs
       gatk.execute params
       report "SNP Calling output: #{snps_vcf_file}"
@@ -188,6 +211,11 @@ class VariantPipeline < Pipeline
                 "-glm" => "INDEL",
                 "-stand_call_conf" => "30.0",
                 "-stand_emit_conf" => "30.0"}
+
+      if inputs[:intervals]
+        params["-L"] = inputs[:intervals]
+      end
+
       gatk = GATK.new inputs
       gatk.execute params
       report "Indel calling output: #{indels_vcf_file}"
