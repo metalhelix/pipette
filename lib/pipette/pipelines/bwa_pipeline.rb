@@ -98,7 +98,7 @@ class BwaPipeline < Pipeline
     end
   end
 
-  step :order_bam do
+  step :group_bam do
     input :bam_file
     input :name
     input :picard
@@ -107,16 +107,27 @@ class BwaPipeline < Pipeline
       bam_prefix = inputs[:bam_file].split(".")[0..-2].join(".")
       "#{bam_prefix}.group.bam"
     end
+    run do |inputs, outputs|
+      clean_name = inputs[:name].strip.downcase.gsub(" ", "")
+      command = "java -jar #{inputs[:picard]}/AddOrReplaceReadGroups.jar INPUT=#{inputs[:bam_file]}"
+      command += " OUTPUT=#{outputs[:grouped_bam_file]} SORT_ORDER=coordinate RGLB=1 RGPL=illumina RGPU=1 RGSM=#{clean_name} VALIDATION_STRINGENCY=LENIENT"
+      execute command
+    end
+  end
+
+  step :order_bam do
+    input :bam_file
+    input :name
+    input :picard
+    input :reference
+    input :grouped_bam_file
     output :reordered_bam_file do |inputs|
       bam_prefix = inputs[:bam_file].split(".")[0..-2].join(".")
       "#{bam_prefix}.group.reorder.bam"
     end
     run do |inputs, outputs|
       clean_name = inputs[:name].strip.downcase.gsub(" ", "")
-      command = "java -jar #{inputs[:picard]}/AddOrReplaceReadGroups.jar INPUT=#{inputs[:bam_file]}"
-      command += " OUTPUT=#{outputs[:grouped_bam_file]} SORT_ORDER=coordinate RGLB=1 RGPL=illumina RGPU=1 RGSM=#{clean_name} VALIDATION_STRINGENCY=LENIENT"
-      execute command
-      command = "java -jar #{inputs[:picard]}/ReorderSam.jar INPUT=#{outputs[:grouped_bam_file]}"
+      command = "java -jar #{inputs[:picard]}/ReorderSam.jar INPUT=#{inputs[:grouped_bam_file]}"
       command += " OUTPUT=#{outputs[:reordered_bam_file]} REFERENCE=#{inputs[:reference]} VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true"
       execute command
     end
