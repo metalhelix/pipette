@@ -8,32 +8,36 @@ require 'pipette'
 # pipelines don't receive it
 input_pipeline_name = ARGV.shift
 
+def help_pipelines
+  puts "Valid pipeline names are:"
+  ALL_PIPELINES.each do |name, klass|
+    puts "#{name}:"
+    puts "  #{klass.pipeline.description}"
+  end
+  exit
+end
+
 #ALL_PIPELINES is defined in lib/pipette/pipelines
 
 # Fail if no argument is provided
 if !input_pipeline_name
   puts "ERROR: No pipeline name provided"
   puts "please run using ./pipette.rb <pipeline_name>"
-  puts "Valid pipeline names are:"
-  ALL_PIPELINES.keys.each {|k| puts "\t#{k}"}
-  exit
+  help_pipelines
 end
 
 # Acquire pipeline data for that name
-pipeline_data = ALL_PIPELINES[input_pipeline_name]
+pipeline_class = ALL_PIPELINES[input_pipeline_name]
 
 # Fail if not a valid pipeline name
-if !pipeline_data
+if !pipeline_class
   puts "#{input_pipeline_name} not a valid pipeline"
-  puts "Valid pipeline names are:"
-  ALL_PIPELINES.keys.each {|k| puts "\t#{k}"}
-  exit
+  help_pipelines
 end
 
-puts "running #{pipeline_data[:name]}"
+pipeline = pipeline_class.pipeline
 
-# Pull out the pipeline from the pipeline class
-pipeline = pipeline_data[:class].pipeline
+puts "running #{pipeline.name} pipeline"
 
 # Rest of the code below should probably be moved
 # to inside pipette framework

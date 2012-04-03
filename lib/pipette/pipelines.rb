@@ -25,7 +25,7 @@ end
 all_pipelines = {}
 Pipeline.subclasses.each do |subclass|
   pipeline = subclass.pipeline
-  all_pipelines[pipeline.name] = {:name => pipeline.name, :class => subclass}
+  all_pipelines[pipeline.name] = subclass
 end
 
 # set our ALL_PIPELINES constant to be used

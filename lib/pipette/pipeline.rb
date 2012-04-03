@@ -19,7 +19,8 @@ class Pipeline
   # DSL method for giving a pipeline a
   # name
   def self.name name
-    pipeline.name = name
+    # replace spaces with underscores
+    pipeline.name = name.gsub(/\s+/,"_")
   end
 
   # DSL method for giving a pipeline a
