@@ -4,13 +4,11 @@ $:.unshift(File.join(File.dirname(__FILE__), "lib"))
 
 require 'pipette'
 
-ALL_PIPELINES = { "variant" => {:name => "variant pipeline", :class => VariantPipeline},
-                  "pe_bwa" => {:name => "paired-end bwa pipeline", :class => BwaPipeline}
-                }
-
 # Get the first argument. Shift so
 # pipelines don't receive it
 input_pipeline_name = ARGV.shift
+
+#ALL_PIPELINES is defined in lib/pipette/pipelines
 
 # Fail if no argument is provided
 if !input_pipeline_name
