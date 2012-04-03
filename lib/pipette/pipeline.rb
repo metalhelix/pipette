@@ -3,8 +3,9 @@ require 'yaml'
 require 'fileutils'
 
 require 'pipette/step'
+
 class Pipeline
-  attr_accessor :name, :steps, :default_steps, :options, :options_parser
+  attr_accessor :name, :description, :steps, :default_steps, :options, :options_parser
 
   # DSL method for defining a step
   # takes the name of the step and the
@@ -15,8 +16,16 @@ class Pipeline
     pipeline.steps << current_step
   end
 
+  # DSL method for giving a pipeline a
+  # name
   def self.name name
     pipeline.name = name
+  end
+
+  # DSL method for giving a pipeline a
+  # description
+  def self.description description
+    pipeline.description = description
   end
 
   # DSL method for defining an options parser
@@ -54,6 +63,7 @@ class Pipeline
 
   def initialize
     @name = "default"
+    @description = ""
     @steps = []
     @default_steps = nil
     @options = {}

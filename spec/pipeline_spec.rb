@@ -15,6 +15,7 @@ describe Pipeline do
       @p.default_steps.should == steps
     end
   end
+
   describe "with steps" do
     before(:each) do
       @p = Pipeline.new
@@ -28,9 +29,11 @@ describe Pipeline do
       s2.input :missing_1
       @p.steps << s2
     end
+
     it "should have two steps" do
       @p.steps.size.should == 2
     end
+
     it "should find missing input parameters" do
       input = {:not_input => "not"}
       result = @p.missing_step_inputs input
@@ -62,16 +65,28 @@ describe Pipeline do
       @p.run_steps(input).size.should == 2
     end
   end
+
   describe "simple pipeline" do
     before(:each) do
       @simple = SimplePipeline.pipeline
     end
+
+    it "should have a name" do
+      @simple.name.should == "simple"
+    end
+
+    it "should have a description" do
+      @simple.description.should == "a simple pipeline"
+    end
+
     it "should have one step" do
       @simple.steps.size.should == 1
     end
+
     it "should have nil as default steps" do
       @simple.default_steps.should == nil
     end
+
     it "should be prepared to run all steps" do
       @simple.run_steps.size.should == 1
       @simple.run_steps[0].should == :step_1

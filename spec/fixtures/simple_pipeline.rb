@@ -1,5 +1,7 @@
 
 class SimplePipeline < Pipeline
+  name "simple"
+  description "a simple pipeline"
   step :step_1 do
     input :input_1
     output :output_1 do |input| "#{input[:input_1]}_out" end
