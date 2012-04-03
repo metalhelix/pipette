@@ -154,11 +154,11 @@ class Pipeline
 
   def run_steps inputs = nil
     all_step_names = @steps.collect {|s| s.name}
-    puts "all steps    : #{all_step_names.join(", ")}"
+    # puts "all steps    : #{all_step_names.join(", ")}"
     run_step_names = default_steps
     if inputs and inputs[:steps]
       input_steps = [inputs[:steps]].flatten.collect {|s| s.strip.downcase.to_sym}
-      puts "input steps options: #{input_steps.join(', ')}"
+      # puts "input steps options: #{input_steps.join(', ')}"
       run_step_names = all_step_names.select {|s| input_steps.include? s}
     end
 
@@ -173,8 +173,9 @@ class Pipeline
   def output_inputs(inputs)
     puts "inputs used:"
     inputs.each do |input, value|
-      puts "#{input} => #{value}"
+      puts "  #{input} => #{value}"
     end
+    puts ""
   end
 
   # Prints the provided list of missing input
