@@ -178,6 +178,9 @@ class VariantPipeline < Pipeline
       params = {"-T" => "UnifiedGenotyper",
                 "-I" => variant_bam_file,
                 "-o" => snps_vcf_file,
+                "-A" => "DepthOfCoverage",
+                "-A" => "FisherStrand",
+                "-A" => "ReadPosRankSumTest",
                 "-stand_call_conf" => "30.0",
                 "-stand_emit_conf" => "30.0"}
 
@@ -209,6 +212,9 @@ class VariantPipeline < Pipeline
                 "-I" => variant_bam_file,
                 "-o" => indels_vcf_file,
                 "-glm" => "INDEL",
+                "-A" => "DepthOfCoverage",
+                "-A" => "FisherStrand",
+                "-A" => "ReadPosRankSumTest",
                 "-stand_call_conf" => "30.0",
                 "-stand_emit_conf" => "30.0"}
 
