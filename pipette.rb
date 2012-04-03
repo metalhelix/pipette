@@ -4,8 +4,33 @@ $:.unshift(File.join(File.dirname(__FILE__), "lib"))
 
 require 'pipette'
 
-puts "running variant pipeline"
-pipeline = VariantPipeline.pipeline
+ALL_PIPELINES = { "variant" => {:name => "variant pipeline", :class => VariantPipeline},
+                  "pe_bwa" => {:name => "paired-end bwa pipeline", :class => BwaPipeline}
+                }
+
+input_pipeline_name = ARGV.shift
+
+if !input_pipeline_name
+  puts "ERROR: No pipeline name provided"
+  puts "please run using ./pipette.rb <pipeline_name>"
+  puts "Valid pipeline names are:"
+  ALL_PIPELINES.keys.each {|k| puts "\t#{k}"}
+  exit
+end
+
+pipeline_data = ALL_PIPELINES[input_pipeline_name]
+
+if !pipeline_data
+  puts "#{input_pipeline_name} not a valid pipeline"
+  puts "Valid pipeline names are:"
+  ALL_PIPELINES.keys.each {|k| puts "\t#{k}"}
+  exit
+end
+
+puts "running #{pipeline_data[:name]}"
+
+pipeline = pipeline_data[:class].pipeline
+
 pipeline.default_options
 pipeline.parse_input(ARGV)
 
@@ -18,4 +43,5 @@ end
 steps = pipeline.options[:steps] ? pipeline.options[:steps].collect {|step| step.to_sym} : nil
 
 pipeline.run
+
 
