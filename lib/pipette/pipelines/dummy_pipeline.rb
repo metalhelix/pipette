@@ -1,6 +1,8 @@
 require 'pipette/pipeline'
 
 class DummyPipeline < Pipeline
+  name "dummy"
+  description "simply prints out inputs and outputs"
   options do
     opts = OptionParser.new do |o|
       o.on('-i', '--input BAM_FILE', 'REQUIRED - Input BAM file to call SNPs on') {|b| options[:input] = b}

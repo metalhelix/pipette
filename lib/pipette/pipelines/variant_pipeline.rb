@@ -3,6 +3,7 @@ require 'pipette/tools'
 
 class VariantPipeline < Pipeline
   name "variant"
+  description "SNP and Indel calling using GATK and snpeff"
 
   options do
     opts = OptionParser.new do |o|

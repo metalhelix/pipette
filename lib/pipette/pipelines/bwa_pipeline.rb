@@ -2,7 +2,8 @@ require 'pipette/pipeline'
 require 'pipette/tools'
 
 class BwaPipeline < Pipeline
-  name "bwa"
+  name "pe_bwa"
+  description "Paired-end alignment using bwa"
   options do
     opts = OptionParser.new do |o|
       o.on('-i', '--input FASTQ_FILE', 'REQUIRED - Input Fastq file to align') {|b| options[:input] = b}
