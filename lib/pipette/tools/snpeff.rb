@@ -30,7 +30,7 @@ class SnpEff
     output_filename = File.expand_path(output_filename)
     stats_filename = File.expand_path(stats_filename)
     vcf_filename = File.expand_path(vcf_filename)
-    
+
     puts "Starting annotation on #{vcf_filename}"
     command = "java -Xmx4g -jar #{(jar_path)}"
     command += " -c #{config_path}"

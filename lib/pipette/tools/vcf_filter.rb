@@ -13,7 +13,6 @@ class VCFFilter
       #end
       rtn
     end
-    vcf.close
     output
   end
 end

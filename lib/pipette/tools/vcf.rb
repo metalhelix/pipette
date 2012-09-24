@@ -1,12 +1,24 @@
 
 class VCF
   def initialize filename
-    filename = File.expand_path(filename)
+    @filename = File.expand_path(filename)
     raise "VCF File not found at: #{filename}" unless File.exists? filename
-    @file = File.open(filename,'r')
   end
 
-  def to_h header, line
+  def open
+    @file = File.open(@filename,'r')
+  end
+
+  def to_h
+    output = {}
+    self.each do |values|
+
+    end
+    self.close
+    output
+  end
+
+  def hash_line header, line
     geno_data_key = header[header.index("FORMAT") + 1]
     values = header.zip(line.chomp.split("\t"))
     hash_values = Hash[*values.flatten]
@@ -42,6 +54,7 @@ class VCF
 
   def each
     header = []
+    open
     @file.each_line do |line|
       if line =~ /^##/
         next
@@ -49,7 +62,7 @@ class VCF
         header = line.chomp.gsub(/#/,"").split("\t")
       else
         raise "ERROR: header line not found" if header.empty?
-        yield to_h(header, line)
+        yield hash_line(header, line)
       end
     end
   end
@@ -60,6 +73,7 @@ class VCF
     total_count = 0
     keep_count = 0
     kill_count = 0
+    self.open
     @file.each_line do |line|
       if line =~ /^##/
         outfile << line
@@ -73,7 +87,7 @@ class VCF
           raise "ERROR: header line not found"
         end
         total_count += 1
-        result = yield to_h(header, line)
+        result = yield hash_line(header, line)
         if result
           keep_count += 1
           outfile << line
@@ -83,6 +97,7 @@ class VCF
       end
     end
     outfile.close
+    self.close
     puts "kept   : #{keep_count} / #{total_count} (#{keep_count.to_f/total_count.to_f*100.0}%)"
     puts "removed: #{kill_count} / #{total_count} (#{kill_count.to_f/total_count.to_f*100.0}%)" 
   end

@@ -6,6 +6,7 @@ class Annotator
     snpeff = SnpEff.new
     results = snpeff.run input_file, options
     summer = SnpeffSummarizer.new
+    options[:raw_vcf_file] = input_file
     summary_file = summer.run results[:snpeff_output], options
     summary_file
   end

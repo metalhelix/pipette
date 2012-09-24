@@ -1,11 +1,10 @@
-
 class SnpeffSummarizer
   def run input_filename, options
     raise "ERROR: snpeff txt file not found at: #{input_filename}." unless File.exists? input_filename
     base_name = input_filename.split(".")[0..-2].join(".")
     output_filename = base_name + ".collapse.txt"
 
-    collapse_file(input_filename, output_filename)
+    collapse_file(input_filename, options[:raw_vcf_file], output_filename)
 
     output_filename
   end
@@ -21,10 +20,15 @@ class SnpeffSummarizer
 
   COMBINE = ["TranscriptID", "Effect", "OldAA2NewAA", "OldCondon2NewCondon"]
 
-  def collapse_file input_filename, output_filename
+  def collapse_file input_filename, original_vcf_file, output_filename
     output_file = File.open(output_filename, 'w')
     print_header(HEADERS, output_file)
     input_file = File.open(input_filename, 'r')
+
+    if original_vcf_file
+
+    end
+
     previous_id = nil
     previous_data = {}
     input_file.each_line do |line|
@@ -56,7 +60,7 @@ class SnpeffSummarizer
     HEADERS.each do |header|
       if COMBINE.include? header
         new_data[header] ||= " "
-        data[header] = [old_data[header], new_data[header]].compact.join(";") 
+        data[header] = [old_data[header], new_data[header]].compact.join(";")
       else
         data[header] = new_data[header]
       end
