@@ -8,9 +8,6 @@ require 'optparse'
 require 'yaml'
 
 $options = {}
-$options[:snpeff] = "/n/site/inst/Linux-x86_64/bioinfo/snpeff/current/snpEff.jar"
-$options[:snpeff_config] = "/n/site/inst/Linux-x86_64/bioinfo/snpeff/current/snpEff.config"
-$options[:annotate] = "dm5.34"
 
 OptionParser.new do |o|
   o.on('-i', '--input VCF_FILE', 'REQUIRED - Input VCF file to annotate SNPs') {|b| $options[:input] = b}

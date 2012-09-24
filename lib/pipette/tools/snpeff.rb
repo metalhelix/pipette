@@ -35,7 +35,7 @@ class SnpEff
     command = "java -Xmx4g -jar #{(jar_path)}"
     command += " -c #{config_path}"
     command += " -no-downstream -no-upstream -ud 0"
-    command += " -stats #{stats_filename}"
+    command += " -stats #{stats_filename} -o txt"
     command += " #{database} #{vcf_filename} > #{output_filename}"
 
     puts command if options[:verbose]

@@ -42,7 +42,7 @@ puts "running #{pipeline.name} pipeline"
 # Rest of the code below should probably be moved
 # to inside pipette framework
 pipeline.default_options
-pipeline.parse_input(ARGV)
+options = pipeline.parse_input(ARGV)
 
 if !pipeline.options[:output]
   output_prefix = options[:input].split(".")[0..-2].join(".")

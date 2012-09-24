@@ -11,7 +11,7 @@ if !snps_1_filename or !snps_2_filename
   raise "invalid inputs"
 end
 
-options = {:shared => false, :out => File.basename(snps_1_filename)}
+options = {:shared => false, :out => File.dirname(snps_1_filename)}
 opts = OptionParser.new do |o|
   o.banner = "Usage: fast_filter_matching_vcfs path/to/mutant/snps path/to/control/snps [options]"
   o.on('-o', '--out /file/path', String, 'specify the output path') {|b| options[:out] = File.expand_path(b)}
