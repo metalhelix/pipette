@@ -1,7 +1,9 @@
 
 class VCF
-  def initialize filename
+  attr_accessor :options
+  def initialize filename, options = {:read_info => false}
     @filename = File.expand_path(filename)
+    @options = options
     raise "VCF File not found at: #{filename}" unless File.exists? filename
   end
 
@@ -13,6 +15,15 @@ class VCF
     output = {}
     self.each do |values|
 
+    end
+    self.close
+    output
+  end
+
+  def to_a
+    output = []
+    self.each do |values|
+      output << values
     end
     self.close
     output
@@ -40,11 +51,14 @@ class VCF
     # use DP2 as other DP will overwrite this one
     hash_values["DP2"] = hash_values["DP"].to_i
     hash_values["GQ"] = hash_values["GQ"].to_f
-    # now lets break up the info section too
-    #infos = hash_values["INFO"].split(";").collect {|i| i.split("=")}
-    #infos = infos.collect {|i| i.size == 1 ? i << true : i; i}
-    #puts "#{infos.inspect}"
-    #hash_infos = Hash[*infos.flatten]
+    if options[:read_info]
+      # now lets break up the info section too
+      infos = hash_values["INFO"].split(";").collect {|i| i.split("=")}
+      infos = infos.collect {|i| i.size == 1 ? i << true : i; i}
+      #puts "#{infos.inspect}"
+      hash_infos = Hash[*infos.flatten]
+      hash_values["INFO"] = hash_infos
+    end
     #puts "#{hash_infos.inspect}"
     #TODO: convert to floats / integers before adding to hash_values
     #hash_values.merge! hash_infos
