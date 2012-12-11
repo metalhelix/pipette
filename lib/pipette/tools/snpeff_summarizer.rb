@@ -89,7 +89,7 @@ class SnpeffSummarizer
     HEADERS.each do |header|
       if COMBINE.include? header
         new_data[header] ||= " "
-        data[header] = [old_data[header], new_data[header]].compact.join(";")
+        data[header] = [old_data[header], new_data[header]].compact.uniq.join(";")
       else
         data[header] = new_data[header]
       end
