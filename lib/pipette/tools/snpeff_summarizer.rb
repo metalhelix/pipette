@@ -33,29 +33,56 @@ class SnpeffSummarizer
       puts " combining with #{original_vcf_file}"
       vcf = VCF.new(original_vcf_file, {:read_info => false})
       vcf.to_a.each do |vcf_line|
-        id = [vcf_line["CHROM"], vcf_line["POS"], vcf_line["REF"], vcf_line["ALT"]].join("_").gsub("chr","")
+        ref = vcf_line["REF"]
+        alt = vcf_line["ALT"]
+        if vcf_line["REF"].length > 1
+          # puts "del"
+          ref = "*"
+          alt = "-#{vcf_line["REF"][1..-1]}"
+        elsif vcf_line["ALT"].length > 1
+          # puts "insertion"
+          ref = "*"
+          alt = "+#{vcf_line["ALT"][1..-1]}"
+        end
+        id = [vcf_line["CHROM"], vcf_line["POS"], ref, alt].join("_").gsub("chr","")
         vcf_hash[id] = vcf_line
       end
     end
     data = []
+    index = 0
     input_file.each_line do |line|
       if line =~ /^#/
         next
-      else
-        values = line.chomp.split("\t")
-        line_data = Hash[ALL_DATA.zip(values)]
-        id = [line_data["Chrom"], line_data["Position"], line_data["Reference"], line_data["Change"]].join("_").gsub("chr","")
+      end
+      values = line.chomp.split("\t")
+      line_data = Hash[ALL_DATA.zip(values)]
+      id = [line_data["Chrom"], line_data["Position"], line_data["Reference"], line_data["Change"]].join("_").gsub("chr","")
 
+      if vcf_hash[id]
+        ad = vcf_hash[id]["AD"]
+        line_data["Ref_Count"] = ad[0]
+        line_data["Change_Count"] = ad[1]
+        # something stupid for indels
+      elsif line_data["Reference"] == "*"
+        ref = line_data["Reference"]
+        change = line_data["Change"]
+        # if line_data["Change"] =~ /^+/
+        # elsif line_data["Change"] =~ /^-/
+        # else
+        #   puts "NO conversion for "
+        # end
+        id = [line_data["Chrom"], line_data["Position"].to_i - 1, ref, change].join("_").gsub("chr","")
         if vcf_hash[id]
           ad = vcf_hash[id]["AD"]
           line_data["Ref_Count"] = ad[0]
           line_data["Change_Count"] = ad[1]
         else
           puts "no vcf entry for #{id}"
+          puts "#{vcf_hash.keys[7]}"
         end
-
-        data << line_data
       end
+
+      data << line_data
     end
     input_file.close
     data
