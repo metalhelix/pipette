@@ -12,6 +12,7 @@ class BwaPipeline < Pipeline
 
       o.on('-o', '--output PREFIX', 'Output prefix to use for generated files') {|b| options[:output] = b}
       o.on('-n', '--name NAME', String, 'REQUIRED - Human readable sample name') {|b| options[:name] = b}
+      o.on('-t', '--threads NUM', Integer, 'Number of threads to use') {|b| options[:threads] = b}
 
       options[:samtools] = %x[which samtools].chomp
       o.on('--samtools BIN_PATH', String, "Specify location of samtools") {|b| options[:samtools] = b}
@@ -40,6 +41,7 @@ class BwaPipeline < Pipeline
       output_dir = File.expand_path(File.dirname(inputs[:output]))
       command = "mkdir -p #{output_dir}"
       execute command
+      inputs[:threads] ||= 1
       report "checking inputs complete"
     end
   end
@@ -50,6 +52,7 @@ class BwaPipeline < Pipeline
     input :reference
     input :output
     input :bwa
+    input :threads
     output :sam_file do |inputs|
       "#{inputs[:output]}.aligned.sam.gz"
     end
@@ -62,11 +65,11 @@ class BwaPipeline < Pipeline
       output_read_two = "#{output_prefix}.read2.sai"
 
       report "Starting bwa align - first read"
-      command = "#{inputs[:bwa]} aln -o 1 -e 1 #{inputs[:reference]} #{inputs[:input]} > #{output_read_one}"
+      command = "#{inputs[:bwa]} aln -t #{inputs[:threads]} -o 1 -e 1 #{inputs[:reference]} #{inputs[:input]} > #{output_read_one}"
       execute command
 
       report "Staring bwa align - second read"
-      command = "#{inputs[:bwa]} aln -o 1 -e 1 #{inputs[:reference]} #{inputs[:pair]} > #{output_read_two}"
+      command = "#{inputs[:bwa]} aln -t #{inputs[:threads]} -o 1 -e 1 #{inputs[:reference]} #{inputs[:pair]} > #{output_read_two}"
       execute command
 
       #clean_id = inputs[:id].strip.downcase.gsub(" ", "")
