@@ -1,0 +1,11 @@
+reference: "/n/core/Bioinformatics/jfv/projects/cbio.nxu.100/WS220/Sequence/WholeGenomeFasta/genome.fa"
+recalibrate: false
+verbose: true
+annotate: "WS220.66"
+cores: 8
+gatk: "/n/local/stage/gatk/gatk_1.4-37-g0b29d54/GenomeAnalysisTK.jar"
+snpeff: "/n/local/stage/snpeff/snpEff_3_1/snpEff.jar"
+snpeff_config: "/n/local/stage/snpeff/snpEff_3_1/snpEff.config"
+samtools: "/n/local/bin/samtools"
+steps: [check_input, setup, realign, call_snps, call_indels]
+#steps: [filter]

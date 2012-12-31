@@ -1,0 +1,6 @@
+reference: "/n/core/Bioinformatics/jfv/projects/cbio.nxu.100/WS220/Sequence/WholeGenomeFasta/genome.fa"
+verbose: true
+samtools: "/n/local/bin/samtools"
+bwa: "/n/local/stage/bwa/bwa_0.6.2/bwa"
+picard: "/n/local/stage/picard/picard_1.75/"
+threads: 8
