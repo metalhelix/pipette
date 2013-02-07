@@ -1,6 +1,6 @@
-reference: "/scratch/jfv/mak_snp_analysis/ensembl/ce_ws210/genome.fa"
-output: "bwa_align/output_"
-samtools: "/n/site/inst/Linux-x86_64/bioinfo/bin/samtools"
-bwa: "/n/projects/jfv/tools/bin/bwa"
-picard: "/n/site/inst/Linux-x86_64/bioinfo/picard/picard-tools-1.49"
+reference: "/n/data1/genomes/igenome/Drosophila_melanogaster/UCSC/dm3/Sequence/BWAIndex/genome.fa"
+output: "bwa_align/output"
+samtools: "/n/local/bin/samtools"
+bwa: "/n/local/bin/bwa"
+picard: "/n/local/stage/picard/current"
 verbose: true
