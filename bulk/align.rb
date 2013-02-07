@@ -16,7 +16,7 @@ fastq_dir = File.expand_path(ARGV[0])
 output_dir = File.join(CUR_DIR, "align")
 system("mkdir -p #{output_dir}")
 
-PIPETTE = File.join(CUR_DIR, "pipette", "pe_bwa.rb")
+PIPETTE = File.join(CUR_DIR, "..", "pe_bwa.rb")
 CONFIG_FILE = File.join(CUR_DIR, "pe_bwa_config.yml")
 
 
