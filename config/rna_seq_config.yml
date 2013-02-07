@@ -1,0 +1,8 @@
+reference: "/n/data1/genomes/igenome/Drosophila_melanogaster/UCSC/dm3/Sequence/Bowtie2/genome"
+output: "align/tophat"
+samtools: "/n/local/bin/samtools"
+tophat: "/n/local/bin/tophat"
+picard: "/n/local/stage/picard/current"
+verbose: true
+threads: 2
+tophat_params: "--mate-inner-dist 200 --mate-std-dev 70 --segment-length 35 --segment-mismatches 2"
