@@ -35,7 +35,7 @@ class BwaPipeline < Pipeline
       raise "ERROR - reference Fasta file required. Use -r parameter or -h for more info" unless inputs[:reference]
       raise "ERROR Reference file not found at:#{inputs[:reference]}." unless File.exists? inputs[:reference]
       raise "ERROR samtools not found at:#{inputs[:samtools]}." unless File.exists? inputs[:samtools]
-      raise "ERROR bwa not found at:#{inputs[:bwa]}." unless inputs[:bwa] and File.exists? inputs[:samtools]
+      raise "ERROR bwa not found at:#{inputs[:bwa]}." unless inputs[:bwa] and File.exists? inputs[:bwa]
       raise "ERROR picard not found at:#{inputs[:picard]}." unless inputs[:picard] and File.exists? inputs[:picard]
       report "creating output directory if needed"
       output_dir = File.expand_path(File.dirname(inputs[:output]))
