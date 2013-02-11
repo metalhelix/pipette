@@ -6,6 +6,7 @@ class TophatPipeline < Pipeline
   description "Alignment using tophat"
   options do
     opts = OptionParser.new do |o|
+      o.on('-n', '--name SAMPLE_NAME', String, 'REQUIRED - Human readable sample name') {|b| options[:name] = b}
       o.on('-i', '--input FASTQ_FILE', String, 'REQUIRED - Input Fastq file to align') {|b| options[:input] = b.split(",")}
       options[:pair] = []
       o.on('-p', '--pair FASTQ_FILE', String, 'paired-end fastq file to align') {|b| options[:pair] = b.split(",")}
@@ -14,7 +15,6 @@ class TophatPipeline < Pipeline
       o.on('-g', '--gtf GTF_FILE', 'GTF file to use, if any.') {|b| options[:gtf] = b}
 
       o.on('-o', '--output PREFIX', 'Output prefix to use for generated files') {|b| options[:output] = b}
-      o.on('-n', '--name NAME', String, 'REQUIRED - Human readable sample name') {|b| options[:name] = b}
       options[:threads] = 1
       o.on('-t', '--threads NUM', Integer, 'Number of threads to use') {|b| options[:threads] = b}
 
@@ -46,9 +46,9 @@ class TophatPipeline < Pipeline
         end
       end
       raise "ERROR - reference Fasta file required. Use -r parameter or -h for more info" unless inputs[:reference]
-      # raise "ERROR Reference file not found at:#{inputs[:reference]}." unless File.exists? inputs[:reference]
-      # raise "ERROR samtools not found at:#{inputs[:samtools]}." unless File.exists? inputs[:samtools]
-      # raise "ERROR tophat not found at:#{inputs[:tophat]}." unless inputs[:tophat] and File.exists? inputs[:tophat]
+      raise "ERROR Reference file not found at:#{inputs[:reference]}." unless File.exists? inputs[:reference]
+      raise "ERROR samtools not found at:#{inputs[:samtools]}." unless File.exists? inputs[:samtools]
+      raise "ERROR tophat not found at:#{inputs[:tophat]}." unless inputs[:tophat] and File.exists? inputs[:tophat]
       report "checking inputs complete"
     end
   end
@@ -64,6 +64,7 @@ class TophatPipeline < Pipeline
   end
 
   step :align do
+    input :name
     input :input
     input :pair
     input :reference

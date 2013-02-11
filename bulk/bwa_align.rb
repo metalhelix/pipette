@@ -13,12 +13,13 @@ PROCESSES = 2
 
 
 fastq_dir = File.expand_path(ARGV[0])
+config_file = ARGV[1]
+
+
 output_dir = File.join(CUR_DIR, "align")
 system("mkdir -p #{output_dir}")
 
 PIPETTE = File.join(CUR_DIR, "..", "pe_bwa.rb")
-CONFIG_FILE = File.join(CUR_DIR, "pe_bwa_config.yml")
-
 
 # reject second read as they will be handled below
 sequence_filenames = Dir.glob(File.join(fastq_dir, "s_*_1_*.fastq.gz"))
