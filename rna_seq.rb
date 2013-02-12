@@ -4,9 +4,9 @@ $:.unshift(File.join(File.dirname(__FILE__), "lib"))
 
 require 'pipette'
 
-puts "running tophat pipeline"
-pipeline = TophatPipeline.pipeline
-pipeline.default_options
+puts "running rna_seq pipeline"
+pipeline = RnaSeqPipeline.pipeline
+# pipeline.default_options
 pipeline.parse_input(ARGV)
 
 if !pipeline.options[:output]
