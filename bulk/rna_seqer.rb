@@ -4,20 +4,8 @@ require 'yaml'
 require 'optparse'
 require 'parallel'
 
-options = {}
-
-opts = OptionParser.new do |o|
-  o.on('-y', '--yaml YAML_FILE', String, 'Yaml configuration file that can be used to load options. Command line options will trump yaml options') {|b| options.merge!(Hash[YAML::load(open(b)).map {|k,v| [k.to_sym, v]}]) }
-  o.on('-h', '--help', 'Displays help screen, then exits') {puts o; exit}
-end
-opts.parse(ARGV)
-
-puts options.inspect
-
 CUR_DIR = File.expand_path(File.dirname(__FILE__))
 PIPELINE = File.expand_path(File.join(CUR_DIR, "..", "rna_seq.rb"))
-
-puts PIPELINE
 
 def assert
   raise "assertion failed !" unless yield
@@ -29,28 +17,47 @@ Usage: rna_seqer [TYPE] [ORDER/STARTING_DIR] <OPTIONS>
 
 TYPE can be one of the following:
 
-  order    - run pipeline on entire order
-
-             expects input to be text file with
+  order    - Create samples.yml for an order.
+             Expects input to be text file with
              flowcell_id[TAB]flowcell_dir
-             for all flowcells in the order
+             for all flowcells in the order.
 
-  flowcell - run pipeline on flowcell
-             
+  flowcell - Create samples.yml for flowcell.
              expects input to be flowcell_dir
-             for flowcell
+             for flowcell.
+
+  check    - Checks the validity of a 
+             samples.yml file. Input is
+             samples.yml file name.
   
 
-  sample   - run pipeline on a particular sample
+  run      - Run pipeline on a particular 
+             samples.yml file. Input is 
+             samples.yml file name.
 
-             expects input to be full path to 
-             sample fastq file
+  help     - Prints this text, as well as pipeline
+             help and exits
 
-    HELP
+  HELP
 
-  def initialize()
+  # ---
+  # constructor
+  # handle initialization of
+  # class-wide variables
+  # ---
+  def initialize(options = {})
+    @options = options
+    @options['sample_report'] ||= 'Sample_Report.csv'
+    @options['processes'] ||= 1
+
+    puts @options.inspect
   end
 
+  # ---
+  # parse order file
+  # order file expected to be
+  # FLOWCELL_ID[TAB]FLOWCELL_PATH
+  # ---
   def load_order(order_file)
     if !File.exists?(order_file)
       puts "ERROR: order file not found"
@@ -60,10 +67,14 @@ TYPE can be one of the following:
     orders = File.open(order_file, 'r').read.split("\n").collect {|l| l.split("\t")}
   end
 
-  def load_sample_report(root_dir)
-    sample_report_filename = File.join(root_dir, "Sample_Report.csv")
+  # ---
+  # parse sample report file
+  # only returns data for samples that have data in the specified directory
+  # ---
+  def load_sample_report(root_dir, fc_id)
+    sample_report_filename = File.join(root_dir, @options['sample_report'])
     if !File.exists?(sample_report_filename)
-      puts "ERROR: Sample_Report.csv not found in directory"
+      puts "ERROR: #{@options['sample_report']} not found in directory"
       puts "#{root_dir}"
       exit(1)
     end
@@ -78,13 +89,28 @@ TYPE can be one of the following:
       if File.exists? full_path
         sample_hash['root'] = root_dir
         sample_hash['full'] = full_path
+        sample_hash['flowcell'] = fc_id
         samples << sample_hash
       end
     end
     samples
   end
 
-  def join_sample_reports(sample_reports, keys = ["sample name"])
+  def condense_samples(samples)
+    retain = ['full','illumina index', 'read', 'lane' 'flowcell']
+    sorted_samples = []
+    samples.each do |sample|
+      sample.keep_if {|k,v| retain.include?(k)}
+      sorted_samples << Hash[sample.sort_by {|k, v| retain.find_index(k)}]
+    end
+    sorted_samples
+  end
+
+  # ---
+  # combines data from multiple sample reports
+  # ---
+  def join_sample_reports(sample_reports)
+    keys = @options['merge_samples'] ? ['sample name'] : ['flowcell', 'lane', 'illumina index']
     sample_data = Hash.new {|h,k| h[k] = []}
     sample_reports.each do |sample_report|
       sample_report.each do |sample|
@@ -100,13 +126,16 @@ TYPE can be one of the following:
       first_reads = first_reads.sort {|a,b| "#{a['flowcell']}_#{a['lane']}" <=> "#{b['flowcell']}_#{b['lane']}"}
       second_reads = data.select {|d| d['read'] == '2'}
       second_reads = second_reads.sort {|a,b| "#{a['flowcell']}_#{a['lane']}" <=> "#{b['flowcell']}_#{b['lane']}"}
-      sample['input'] = first_reads
-      sample['pair'] = second_reads
+      sample['input'] = condense_samples(first_reads)
+      sample['pair'] = condense_samples(second_reads)
       samples << sample
     end
     samples
   end
 
+  # ---
+  # basic checking before running
+  # ---
   def check_samples(samples)
     names = samples.collect {|s| s['name']}
     unique_names = names.uniq
@@ -126,32 +155,29 @@ TYPE can be one of the following:
         assert { pair_flowcells == input_flowcells }
       end
     end
-
   end
 
+  # ---
+  # ---
   def load_sample_reports(orders)
     sample_reports = []
     orders.each do |order|
-      sample_reports << load_sample_report(order[1])
+      sample_reports << load_sample_report(order[1], order[0])
     end
     samples = join_sample_reports(sample_reports)
-    check_samples(samples)
     samples
   end
 
-  def run_order(order_file, args)
-    orders = load_order(order_file)
-    samples = load_sample_reports(orders)
-
-    run_pipeline(samples, args)
+  # ---
+  # ---
+  def execute(command)
+    puts command
+    system(command)
+    puts " ---- "
   end
 
-  def run_flowcell(starting_dir, args)
-    sample_report = load_sample_report(starting_dir)
-    samples = join_sample_reports([sample_report])
-    run_pipeline(samples, args)
-  end
-
+  # ---
+  # ---
   def run_pipeline_on_sample(data)
     command = "#{PIPELINE}"
     command += " --name #{data['name']}"
@@ -159,15 +185,14 @@ TYPE can be one of the following:
     if data['pair']
       command += " --pair #{data['pair']}"
     end
-
     command += " #{data['args'].join(" ")}"
-    puts command
-    puts " ---- "
+    execute(command)
   end
 
-
+  # ---
+  # ---
   def run_pipeline(samples, args)
-    processes = 1
+    processes = @options['processes']
     Parallel.each(samples, :in_processes => processes) do |sample|
       input_string = sample['input'].collect{ |i| i['full']}.join(",")
       pair_string = nil
@@ -175,24 +200,145 @@ TYPE can be one of the following:
         pair_string = sample['pair'].collect{ |i| i['full']}.join(",")
       end
 
-      sample_data = {'name' => sample['name'], 'input' => input_string, 'pair' => pair_string, 'args' => args}
+      sample_data = {'name' => sample['name'],
+                     'input' => input_string,
+                     'pair' => pair_string,
+                     'args' => args}
+
       run_pipeline_on_sample(sample_data)
     end
   end
 
-  def self.execute(command, args)
+  # ---
+  # ---
+  def output_samples_file(samples, args)
+    output = {"samples" => samples, "args" => args}
+
+    File.open(@options['samples_file'],'w') do |file|
+      file.write(output.to_yaml)
+    end
+  end
+
+  # ---
+  # ---
+  def parse_samples_file(filename)
+    if !File.exists?(filename)
+      puts "ERROR: it doesn't look like you gave me"
+      puts " a samples.yml file."
+      puts "Input file does not exist."
+      puts "Input file: #{filename}."
+      exit(1)
+    end
+    config = YAML.load(File.open(filename, 'r'))
+    samples = {}
+    if config['samples']
+      samples = config['samples']
+    end
+    args = []
+    if config['args']
+      args = config.delete('args')
+    end
+    [samples, args]
+  end
+
+  # ---
+  # ---
+  def prepare_order(order_file, args)
+    orders = load_order(order_file)
+    samples = load_sample_reports(orders)
+    output_samples_file(samples, args)
+  end
+
+  # ---
+  # ---
+  def prepare_flowcell(starting_dir, args)
+    flowcell_id = File.basename(starting_dir)
+    sample_report = load_sample_report(starting_dir, flowcell_id)
+    samples = join_sample_reports([sample_report])
+    output_samples_file(samples, args)
+  end
+
+  def run(input_file, additional_args)
+
+    samples, args = parse_samples_file(input_file)
+    args.concat(additional_args)
+    run_pipeline(samples, args)
+  end
+
+  # ---
+  # ---
+  def run_sample(args)
+    command = "#{PIPELINE} #{args.join(" ")}"
+    execute command
+  end
+
+  def check(filename)
+    samples, args = parse_samples_file(filename)
+    check_samples(samples)
+  end
+
+  def self.help()
+    puts Runner::HELP
+    puts system("#{PIPELINE} -h")
+  end
+
+  # ---
+  # ---
+  def self.execute(command, options, args)
     case command
     when "order"
-      self.new().run_order(args.shift, args)
+      self.new(options).prepare_order(args.shift, args)
     when "flowcell"
-      self.new().run_flowcell(args.shift, args)
+      self.new(options).prepare_flowcell(args.shift, args)
+    when "run"
+      self.new(options).run(args.shift, args)
+    when "check"
+      self.new(options).check(args.shift)
     when "sample"
+      self.new(options).run_sample(args)
     else
-      puts Runner::HELP
+      self.help()
     end
   end
 end
 
+options = {}
+
+options['sample_report'] = "Sample_Report.csv"
+options['samples_file'] = "./samples.yml"
+options['processes'] = 1
+options['merge_samples'] = true
+
+opts = OptionParser.new do |o|
+  o.on('-y', '--yaml YAML_FILE', String, 'Yaml configuration file that can be used to load options. Command line options will trump yaml options') {|b| options.merge!(Hash[YAML::load(open(b)).map {|k,v| [k.to_sym, v]}]) }
+  o.on('--sample_report [SAMPLE_REPORT_NAME]', String, "Name of Sample_Report file. default: #{options['sample_report']}") {|b|  options['sample_report'] = b}
+  o.on('--samples_file [SAMPLES_FILE_NAME]', String, "Name of samples output file. default: #{options['samples_file']}") {|b|  options['samples_file'] = b}
+  o.on('--processes [NUM_PROCESSES]', Integer, "Number of samples to run at a time. default: #{options['processes']}") {|b|  options['processes'] = b}
+  o.on('--no_merge_samples', "Disables merging samples with the same name. default: #{options['merge_samples']}") {|b|  options['merge_samples'] = false}
+  o.on('-h', '--help', 'Displays help screen, then exits') {puts o; puts Runner::help(); exit}
+end
+
+def parse_known_to(parser, initial_args=ARGV.dup)
+    other_args = []                                         # this contains the unknown options
+    rec_parse = Proc.new { |arg_list|                       # in_method defined proc
+        begin
+            parser.parse! arg_list                          # try to parse the arg list
+        rescue OptionParser::InvalidOption => e
+            other_args += e.args                            # save the unknown arg
+            while arg_list[0] && arg_list[0][0] != "-"      # certainly not perfect but
+                other_args << arg_list.shift                # quick hack to save any parameters
+            end
+            rec_parse.call arg_list                         # call itself recursively
+        end
+    }
+    rec_parse.call initial_args                             # start the rec call
+    other_args                                              # return the invalid arguments
+end
+
+other_options = parse_known_to(opts)
+# puts other_options.inspect
+# puts options.inspect
+# puts ARGV.inspect
 command = ARGV.shift
-Runner.execute command, ARGV
+Runner.execute command, options, ARGV
 
