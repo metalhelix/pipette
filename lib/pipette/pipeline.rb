@@ -166,11 +166,16 @@ class Pipeline
   def run_steps inputs = nil
     all_step_names = @steps.collect {|s| s.name}
     # puts "all steps    : #{all_step_names.join(", ")}"
-    run_step_names = default_steps
+    run_step_names = all_step_names
     if inputs and inputs[:steps]
       input_steps = [inputs[:steps]].flatten.collect {|s| s.strip.downcase.to_sym}
       # puts "input steps options: #{input_steps.join(', ')}"
       run_step_names = all_step_names.select {|s| input_steps.include? s}
+    end
+
+    if inputs and inputs[:not]
+      exclude_steps = [inputs[:not]].flatten.collect {|s| s.strip.downcase.to_sym}
+      run_step_names = run_step_names.select {|s| !exclude_steps.include? s}
     end
 
     if run_step_names.nil?
@@ -202,11 +207,20 @@ class Pipeline
     puts ""
   end
 
+  def self.log_file
+    @@log_file ||= nil
+    if !@@log_file
+      @@log_file = File.join(Dir.getwd, "#{pipeline.name}_#{Time.now.strftime("%Y-%m-%d_%H-%M-%S")}.sh")
+    end
+    @@log_file
+  end
+
   # Helper function that executes a command line command as well as
   # reporting this command to output
   def self.execute command
-    report command
-    result = system(command)
+    # report command
+    # result = system(command)
+    system("echo \"#{command}\" >> #{log_file}")
   end
 
   # Output status parameter as well as other logging information
