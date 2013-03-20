@@ -212,10 +212,15 @@ TYPE can be one of the following:
   # ---
   # ---
   def output_samples_file(samples, args)
+    samples.each do |key, value|
+      if value.class == String
+        value = value.force_encoding 'UTF-8'
+      end
+    end
     output = {"samples" => samples, "args" => args}
-
+    YAML::ENGINE.yamler='syck'
     File.open(@options['samples_file'],'w') do |file|
-      file.write(output.to_yaml)
+      file.write(YAML.dump(output))
     end
   end
 
