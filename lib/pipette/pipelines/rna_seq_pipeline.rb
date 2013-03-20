@@ -33,6 +33,7 @@ class RnaSeqPipeline < Pipeline
 
       o.on('-y', '--yaml YAML_FILE', String, 'Yaml configuration file that can be used to load options. Command line options will trump yaml options') {|b| options.merge!(Hash[YAML::load(open(b)).map {|k,v| [k.to_sym, v]}]) }
       o.on('-s', "--steps STEPS" , Array, 'Specify only which steps of the pipeline should be executed') {|b| options[:steps] = b.collect {|step| step} }
+      o.on("--not STEPS" , Array, 'Specify which steps of the pipeline to exclude') {|b| options[:not] = b.collect {|step| step} }
       o.on('-h', '--help', 'Displays help screen, then exits') {puts o; exit}
     end
     opts
@@ -168,6 +169,38 @@ class RnaSeqPipeline < Pipeline
     end
   end
 
+  step :create_simple_rpkm_out do
+    input :output
+    input :name
+    output :simple_output_path do |inputs|
+      File.expand_path(File.join(inputs[:output], inputs[:name], "simple_rpkm"))
+    end
+    run do |inputs, outputs|
+      report "creating cufflinks directory if needed"
+      command = "mkdir -p #{outputs[:simple_output_path]}"
+      execute command
+    end
+  end
+
+  step :simple_rpkm do
+    input :bam_file
+    input :simple_output_path
+    input :gtf
+    output :simple_rpkm_file do |inputs|
+      File.join(inputs[:simple_output_path], "genes.rpkm")
+    end
+    run do |inputs, outputs|
+      uxon_count_bin = File.join(File.dirname(__FILE__), '..', '..', '..', 'bin', 'uxonCounts')
+      bam_reads_bin = File.join(File.dirname(__FILE__), '..', '..', '..', 'bin', 'bamReads')
+      uxon_out = File.join(inputs[:simple_output_path], "uxon_counts.txt")
+      command = "#{uxon_count_bin} #{inputs[:bam_file]} #{inputs[:gtf]} > #{uxon_out}"
+      execute command
+      bam_read_out = File.join(inputs[:simple_output_path], "bam_data.txt")
+      command = "#{bam_reads_bin} #{inputs[:bam_file]} > #{bam_read_out}"
+      execute command
+    end
+  end
+
   step :create_output_dir do
     input :output
     output :output_bam_dir do |inputs|
@@ -219,10 +252,12 @@ class RnaSeqPipeline < Pipeline
     end
     run do |inputs, outputs|
       output_dir = File.dirname(inputs[:moved_bam_file])
-      Dir.chdir(output_dir) do
+      # Dir.chdir(output_dir) do
+        command = "cd #{output_dir}"
+        execute command
         command = "samtools index #{File.basename(inputs[:moved_bam_file])}"
         execute command
-      end
+      # end
     end
   end
 
