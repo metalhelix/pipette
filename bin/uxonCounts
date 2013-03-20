@@ -1,0 +1,122 @@
+#!/usr/bin/perl
+
+## Takes a BAM file and an uxon BED file and returns (approximate) genewise read counts. 
+## 20110818 by apa.  
+
+## v2 requires no output file, instead writes generic-named file to $bam directory
+
+my ($defs, $bam, $outfile) = @ARGV;   # $defs e.g. uxons.bed from my bowtie index sets
+
+## test extension, create tempdir
+my %knownext = map {($_=>1)} qw/ bed gtf /;
+my ($ext) = ($defs =~ /\.(bed|gff|gtf)/i);
+$ext = "\L$ext";
+die "Unknown exon definition file type '$ext': must be one of bed, gtf, gff.\n" unless $knownext{$ext};
+my ($bampath) = ($bam =~ /^(.*)\/[^\/]+$/);
+$bampath = '.' unless $bampath;   # bam file might not have explicit path
+my $tempout = "uxonCovg_temp_$$.txt";
+
+## read exon/uxon definitions
+my $uxon;
+chomp(my $now = `date`);
+print "Reading $defs : $now\n";
+open IN, $defs or die "Cannot read '$defs': $!\n";
+if ($ext eq 'bed') {   # assuming uxon bed, not exon bed, because of coord redundancy in exons; summary at gene level
+    $uxon = 1;   # assumably, working with uxons
+    while (<IN>) {
+	next if ($_ =~ /^track/ || $_ =~ /^#/);
+	$_ =~ s/[\n\r]+$//;
+	my @data = split /\t/, $_;
+	my ($gene, $exon) = split /:/, $data[3];
+	my $len = $data[2]-$data[1];   # BEDS ARE 0-BASED
+	&process_exon($gene, $exon, $len);
+   }
+} elsif ($ext eq 'gtf') {   # assuming cufflinks gtf; summary at transcript level
+    while (<IN>) {
+	next if ($_ =~ /^track/ || $_ =~ /^#/);
+	$_ =~ s/[\n\r]+$//;
+	my @data = split /\t/, $_;
+	next if $data[2] ne 'exon';
+	my ($trans, $exon) = ($data[8] =~ /gene_id ".*?"; transcript_id "(.*?)"; exon_number "(\d+)";/);
+	my $len = $data[4]-$data[3];   # BEDS ARE 0-BASED
+	&process_exon($trans, $exon, $len);
+    }
+}
+close IN;
+
+## run coverageBed
+my $com = "coverageBed -split -abam $bam -b $defs > $tempout";
+chomp(my $now = `date`);
+print "$com : $now\n";
+system $com;
+
+## read coverageBed results and summarize
+chomp(my $now = `date`);
+print "Post-processing $tempout : $now\n";
+open IN, $tempout or die "Cannot open exon coverage file '$tempout': $!\n";
+if ($ext eq 'bed') {
+    while (<IN>) {
+	$_ =~ s/[\n\r]+$//;
+	my @data = split /\t/, $_;
+	my ($exon, $count, $nzb, $width) = @data[3,6..8];
+	my ($gene, $else) = split /:/, $exon;
+	&postprocess_exon($gene, $exon, $count, $nzb, $width);
+    }
+} elsif ($ext eq 'gtf') {
+    while (<IN>) {
+	$_ =~ s/[\n\r]+$//;
+	my @data = split /\t/, $_;
+	my ($trans, $exon) = ($data[8] =~ /gene_id ".*?"; transcript_id "(.*?)"; exon_number "(\d+)";/);
+	my ($count, $nzb, $width) = @data[9..11];
+	&postprocess_exon($trans, $exon, $count, $nzb, $width);
+    }
+}
+close IN;
+
+## convert covered bp to percent
+$covpct{$_} = $bpcov{$_}/($widths{$_}||1) foreach keys %allgenes;
+
+
+## write
+$outfile = "$bampath/uxonCoverage.txt" unless $outfile;
+open OUT, "> $outfile" or die "Cannot write results to '$outfile': $!\n";
+print OUT "Gene\tUxonLen\tCounts\tCovPct\n";   # \tExon|Len|Counts|CovBp\n";
+foreach my $gene (sort keys %allgenes) {
+    print OUT "$gene\t$length{$gene}\t$counts{$gene}\t$covpct{$gene}\n";
+#    print OUT "$gene\t$length{$gene}\t$counts{$gene}\t$covpct{$gene}\t";
+#    print OUT "$_|$exonlen{$gene}{$_}|$exoncts{$gene}{$_}|$exoncvg{$gene}{$_} " foreach sort keys %{ $allgenes{$gene} };
+#    print OUT "\n";
+}
+close OUT;
+
+
+## exit
+unlink $tempout;
+chomp(my $now = `date`);
+print "Complete: $now\n";
+exit;
+
+
+
+
+
+sub process_exon {
+    my ($gene, $exon, $len) = @_;
+    $exon =~ s/\|/,/g if $uxon;   # convert | to , if uxon ID
+    $length{$gene} += $len;       # exonic length (1 BASED COORDS)
+    $exonlen{$gene}{$exons} = $len;
+    $allgenes{$gene}{$exon} = 1;  # store exons by gene too
+    $counts{$gene} = $covpct{$gene} = $exoncts{$gene}{$exon} = $exoncvg{$gene}{$exon} = 0;  # ensure printable values
+}
+
+
+sub postprocess_exon {
+    my ($gene, $exon, $count, $nzb, $width) = @_;
+    $widths{$gene} += $width+1;    # coverageBed assumes 0-based but we gave it 1-based
+    $counts{$gene} += $count;
+    $bpcov{$gene} += $nzb;
+    $exon =~ s/^$gene://;   # remove gene name from exon ID
+    $exon =~ s/\|/,/g if $uxon;      # convert | to , if uxon ID
+    $exoncts{$gene}{$exon} = $count;
+    $exoncvg{$gene}{$exon} = $nzb;
+}

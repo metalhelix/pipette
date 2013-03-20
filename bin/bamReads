@@ -1,0 +1,48 @@
+#!/usr/bin/perl
+use strict;
+
+# Takes BAM input and returns 9 values: bam name | read length | end-1 alignments | end-2 aligmnents | aligned mate-pairs | total reads | aligned reads | unique sequences | aligned unique sequences
+
+print "BAM\tReadLen\tE1.Alns\tE2.Alns\tPE.Alns\tTot.Unq.Rd\tAln.Unq.Rd\tTot.Unq.Seq\tAln.Unq.Seq\n";
+foreach my $file (@ARGV) {
+    if (-e $file) {
+	if ($file =~ /\.bam$/i) {
+	    system "samtools view $file | cut -f1,2,3,10 > bamreads_temp_$$";
+	} elsif ($file =~ /\.sam$/i) {
+	    system "cut -f1,2,3,10 $file > bamreads_temp_$$";
+	} else {
+	    print "'$file' not a BAM or SAM file!\n";
+	    next;
+	}
+	my (%unique, %aligns);
+	open IN, "bamreads_temp_$$";
+	my ($idx, $flags, $chr, $seq);
+	while (<IN>) {
+	    next if $_ =~ /^@/;  # SAM header
+	    ($idx, $flags, $chr, $seq) = split /\t/, $_;
+	    $unique{TI}{$idx} = 1;
+	    $unique{TS}{$seq} = 1;
+	    next if $chr eq '*';
+	    $unique{AI}{$idx} = 1;
+	    $unique{AS}{$seq} = 1;
+	    if ($flags & 128) {   # second read in pair
+		$aligns{R}++;
+	    } else {
+		$aligns{L}++;
+	    }
+	    $aligns{P}++ unless $flags & 8;
+	}
+	my $readlen = length($seq)-1;  # -1 due to newline
+	close IN;
+	system "rm -f bamreads_temp_$$";
+	my $TIunique = scalar keys %{ $unique{TI} };
+	my $TSunique = scalar keys %{ $unique{TS} };
+	my $AIunique = scalar keys %{ $unique{AI} };
+	my $ASunique = scalar keys %{ $unique{AS} };
+	$aligns{P} /= 2;   # these get counted twice
+	print "$file\t$readlen\t$aligns{L}\t$aligns{R}\t$aligns{P}\t$TIunique\t$AIunique\t$TSunique\t$ASunique\n";
+    } else {
+	print "$file\tCannot read: $!\n";
+    }
+}
+exit;
