@@ -218,9 +218,9 @@ class Pipeline
   # Helper function that executes a command line command as well as
   # reporting this command to output
   def self.execute command
-    # report command
-    # result = system(command)
+    report command
     system("echo \"#{command}\" >> #{log_file}")
+    result = system(command)
   end
 
   # Output status parameter as well as other logging information
