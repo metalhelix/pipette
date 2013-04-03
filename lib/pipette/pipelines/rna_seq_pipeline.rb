@@ -252,12 +252,12 @@ class RnaSeqPipeline < Pipeline
     end
     run do |inputs, outputs|
       output_dir = File.dirname(inputs[:moved_bam_file])
-      # Dir.chdir(output_dir) do
-        command = "cd #{output_dir}"
-        execute command
+      command = "cd #{output_dir}"
+      execute command
+      Dir.chdir(output_dir) do
         command = "samtools index #{File.basename(inputs[:moved_bam_file])}"
         execute command
-      # end
+      end
     end
   end
 
