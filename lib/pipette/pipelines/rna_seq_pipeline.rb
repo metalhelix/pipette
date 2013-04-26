@@ -1,6 +1,8 @@
 require 'pipette/pipeline'
 require 'pipette/tools'
 
+BIN_DIR = File.expand_path(File.join(File.dirname(__FILE__), "..", "..", "..", "bin"))
+
 class RnaSeqPipeline < Pipeline
   name "rna_seq"
   description "Alignment using tophat. analysis with cufflinks and other tools"
@@ -16,7 +18,7 @@ class RnaSeqPipeline < Pipeline
       o.on('-g', '--gtf GTF_FILE', 'GTF file to use, if any.') {|b| options[:gtf] = b}
 
       o.on('-o', '--output PREFIX', 'Output prefix to use for generated folders') {|b| options[:output] = b}
-      options[:threads] = 1
+      options[:threads] = 2
       o.on('-t', '--threads NUM', Integer, 'Number of threads to use') {|b| options[:threads] = b}
 
       options[:tophat] = %x[which tophat].chomp
@@ -27,9 +29,12 @@ class RnaSeqPipeline < Pipeline
       o.on('--samtools BIN_PATH', String, "Specify location of samtools") {|b| options[:samtools] = b}
       o.on('--picard BIN_PATH', String, "Specify location of picard") {|b| options[:picard] = b}
       options[:tophat_params] = ""
-      o.on('--tophat_params BIN_PATH', String, "Specify additional tophat params") {|b| options[:tophat_params] = b}
+      o.on('--tophat_params PARAMS', String, "Specify additional tophat params") {|b| options[:tophat_params] = b}
       options[:cufflinks_params] = ""
-      o.on('--cufflinks_params BIN_PATH', String, "Specify additional cufflinks params") {|b| options[:cufflinks_params] = b}
+      o.on('--cufflinks_params PARAMS', String, "Specify additional cufflinks params") {|b| options[:cufflinks_params] = b}
+
+      options[:counts_bin] = File.join(BIN_DIR, "uxonCounts")
+      o.on('--counts_bin BIN_PATH', String, "Specify location of RPKM counting bin") {|b| options[:counts_bin] = b}
 
       o.on('-y', '--yaml YAML_FILE', String, 'Yaml configuration file that can be used to load options. Command line options will trump yaml options') {|b| options.merge!(Hash[YAML::load(open(b)).map {|k,v| [k.to_sym, v]}]) }
       o.on('-s', "--steps STEPS" , Array, 'Specify only which steps of the pipeline should be executed') {|b| options[:steps] = b.collect {|step| step} }
@@ -42,21 +47,34 @@ class RnaSeqPipeline < Pipeline
   step :check_input do
     run do |inputs, outputs|
       # begin
-        raise "ERROR - input FASTQ file required. Use -i parameter, or -h for more info" unless inputs[:input]
+        add_error "ERROR - input FASTQ file required. Use -i parameter, or -h for more info" unless inputs[:input]
         [inputs[:input]].flatten.each do |input|
-          raise "ERROR Input file not found at:#{input}" unless File.exists? File.expand_path(input)
+          add_error "ERROR Input file not found at:#{input}" unless File.exists? File.expand_path(input)
         end
 
         if inputs[:pair]
           inputs[:pair].each do |pair|
-            raise "ERROR - pair FASTQ file required. Use -p parameter, or -h for more info" unless File.exists? pair
+            add_error "ERROR - pair FASTQ file required. Use -p parameter, or -h for more info" unless File.exists? pair
           end
         end
-        raise "ERROR - bowtie index file required. Use --index parameter or -h for more info" unless inputs[:index]
-        raise "ERROR samtools not found at:#{inputs[:samtools]}." unless File.exists? File.expand_path(inputs[:samtools])
-        raise "ERROR tophat not found at:#{inputs[:tophat]}." unless inputs[:tophat] and File.exists? File.expand_path(inputs[:tophat])
-        raise "ERROR cufflinks not found at:#{inputs[:cufflinks]}." unless inputs[:cufflinks] and File.exists? File.expand_path(inputs[:cufflinks])
+        add_error "ERROR - bowtie index file required. Use --index parameter or -h for more info" unless inputs[:index]
+        add_error "ERROR samtools not found at:#{inputs[:samtools]}." unless File.exists? File.expand_path(inputs[:samtools])
+        add_error "ERROR tophat not found at:#{inputs[:tophat]}." unless inputs[:tophat] and File.exists? File.expand_path(inputs[:tophat])
+        add_error "ERROR cufflinks not found at:#{inputs[:cufflinks]}." unless inputs[:cufflinks] and File.exists? File.expand_path(inputs[:cufflinks])
+        add_error "ERROR Counts Bin not found at:#{inputs[:counts_bin]}." unless inputs[:counts_bin] and File.exists? File.expand_path(inputs[:counts_bin])
+
+        if inputs[:gtf] and inputs[:gtf].length > 0
+          if !File.exists?(inputs[:gtf])
+            add_error "GTF File provided, but #{inputs[:gtf]} cannot be found"
+          end
+        end
+
         report "checking inputs complete"
+
+        if !all_errors.empty?
+          all_errors.each {|e| report e}
+          exit(1)
+        end
       # rescue Exception => e
       #   puts e
       #   puts "Error found in check input. Please fix and run again"
@@ -99,7 +117,9 @@ class RnaSeqPipeline < Pipeline
 
       tophat_command = "#{inputs[:tophat]}"
       if inputs[:gtf] and !inputs[:gtf].empty?
-        tophat_command += " -G #{inputs[:gtf]}"
+        if File.exists?(inputs[:gtf])
+          tophat_command += " -G #{inputs[:gtf]}"
+        end
       end
 
       if inputs[:tophat_params]

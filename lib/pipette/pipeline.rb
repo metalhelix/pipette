@@ -5,7 +5,7 @@ require 'fileutils'
 require 'pipette/step'
 
 class Pipeline
-  attr_accessor :name, :description, :steps, :default_steps, :options, :options_parser
+  attr_accessor :name, :description, :steps, :default_steps, :options, :options_parser, :all_errors
 
   # DSL method for defining a step
   # takes the name of the step and the
@@ -67,6 +67,7 @@ class Pipeline
     @description = ""
     @steps = []
     @default_steps = nil
+    @all_errors = []
     @options = {}
     @options_parser = nil
   end
@@ -226,5 +227,13 @@ class Pipeline
   # Output status parameter as well as other logging information
   def self.report status
     puts "#{Time.now} - " + status
+  end
+
+  def self.add_error message
+    all_errors << message
+  end
+
+  def self.all_errors
+    pipeline.all_errors
   end
 end
