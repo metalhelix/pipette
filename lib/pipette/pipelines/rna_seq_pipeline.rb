@@ -209,7 +209,7 @@ class RnaSeqPipeline < Pipeline
     run do |inputs, outputs|
       bam_reads_bin = File.join(File.dirname(__FILE__), '..', '..', '..', 'bin', 'bamReads')
       uxon_out = File.join(inputs[:simple_output_path], "uxon_counts.txt")
-      command = "#{inputs[:counts_bin]} #{inputs[:bam_file]} #{inputs[:gtf]} > #{uxon_out}"
+      command = "#{inputs[:counts_bin]} #{inputs[:gtf]} #{inputs[:bam_file]} #{uxon_out}"
       execute command
       bam_read_out = File.join(inputs[:simple_output_path], "alignment_count.txt")
       command = "#{inputs[:bam_stats]} #{inputs[:bam_file]} --only total_alignments --table_out --no-headers > #{bam_read_out}"
