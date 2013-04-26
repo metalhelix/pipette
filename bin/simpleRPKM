@@ -5,9 +5,11 @@
 
 ## v2 requires no output file, instead writes generic-named file to $bam directory
 #
-#RUN: uxonCounts ./genes.gtf ./bam.bam ./out.txt
+#  v3 modified by Jim Vallandingham. augment to perform rpkm calculation as well.
+#
+#RUN: simpleRPKM ./genes.gtf ./bam.bam ./out.txt 123
 
-my ($defs, $bam, $outfile) = @ARGV;   # $defs e.g. uxons.bed from my bowtie index sets
+my ($defs, $bam, $outfile, $aligned_reads) = @ARGV;   # $defs e.g. uxons.bed from my bowtie index sets
 
 ## test extension, create tempdir
 my %knownext = map {($_=>1)} qw/ bed gtf /;
@@ -17,6 +19,8 @@ die "Unknown exon definition file type '$defs': must be one of bed, gtf, gff.\n"
 my ($bampath) = ($bam =~ /^(.*)\/[^\/]+$/);
 $bampath = '.' unless $bampath;   # bam file might not have explicit path
 my $tempout = "uxonCovg_temp_$$.txt";
+
+die "need aligned reads count" unless $aligned_reads;
 
 ## read exon/uxon definitions
 my $uxon;
@@ -39,10 +43,17 @@ if ($ext eq 'bed') {   # assuming uxon bed, not exon bed, because of coord redun
 	$_ =~ s/[\n\r]+$//;
 	my @data = split /\t/, $_;
 	next if $data[2] ne 'exon';
-	my ($trans, $exon) = ($data[8] =~ /gene_id ".*?"; transcript_id "(.*?)"; exon_number "(\d+)";/);
+  $data[8] =~ m/.*transcript_id\s*"(.*?)";.*/;
+  my $trans = $1;
+  $data[8] =~ m/.*exon_number\s*"(.*?)";.*/;
+  my $exon = $1;
+	# my ($trans, $exon) = ($data[8] =~ /gene_id \\".*?\\"; transcript_id \\"(.*?)\\"; exon_number \\"(\\d+)\\";/);
 	my $len = $data[4]-$data[3];   # BEDS ARE 0-BASED
 	&process_exon($trans, $exon, $len);
     }
+} else {
+  print "ERROR: unsupported filetype: $ext\n";
+  exit;
 }
 close IN;
 
@@ -68,7 +79,11 @@ if ($ext eq 'bed') {
     while (<IN>) {
 	$_ =~ s/[\n\r]+$//;
 	my @data = split /\t/, $_;
-	my ($trans, $exon) = ($data[8] =~ /gene_id ".*?"; transcript_id "(.*?)"; exon_number "(\d+)";/);
+  #my ($trans, $exon) = ($data[8] =~ /gene_id ".*?"; transcript_id "(.*?)"; exon_number "(\d+)";/);
+  $data[8] =~ m/.*transcript_id\s*"(.*?)";.*/;
+  my $trans = $1;
+  $data[8] =~ m/.*exon_number\s*"(.*?)";.*/;
+  my $exon = $1;
 	my ($count, $nzb, $width) = @data[9..11];
 	&postprocess_exon($trans, $exon, $count, $nzb, $width);
     }
@@ -80,11 +95,12 @@ $covpct{$_} = $bpcov{$_}/($widths{$_}||1) foreach keys %allgenes;
 
 
 ## write
-$outfile = "$bampath/uxonCoverage.txt" unless $outfile;
+$outfile = "$bampath/simple_rpkms.txt" unless $outfile;
 open OUT, "> $outfile" or die "Cannot write results to '$outfile': $!\n";
-print OUT "Gene\tUxonLen\tCounts\tCovPct\n";   # \tExon|Len|Counts|CovBp\n";
+print OUT "name\tlength\tcounts\tcoverage_percent\trpkm\n";   # \tExon|Len|Counts|CovBp\n";
 foreach my $gene (sort keys %allgenes) {
-    print OUT "$gene\t$length{$gene}\t$counts{$gene}\t$covpct{$gene}\n";
+    my $rpkm = 1E9 * ($counts{$gene} / $length{$gene}) / $aligned_reads;
+    print OUT "$gene\t$length{$gene}\t$counts{$gene}\t$covpct{$gene}\t$rpkm\n";
 #    print OUT "$gene\t$length{$gene}\t$counts{$gene}\t$covpct{$gene}\t";
 #    print OUT "$_|$exonlen{$gene}{$_}|$exoncts{$gene}{$_}|$exoncvg{$gene}{$_} " foreach sort keys %{ $allgenes{$gene} };
 #    print OUT "\n";
@@ -93,7 +109,7 @@ close OUT;
 
 
 ## exit
-unlink $tempout;
+#unlink $tempout;
 chomp(my $now = `date`);
 print "Complete: $now\n";
 exit;

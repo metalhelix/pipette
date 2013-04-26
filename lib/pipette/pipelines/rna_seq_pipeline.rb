@@ -33,8 +33,8 @@ class RnaSeqPipeline < Pipeline
       options[:cufflinks_params] = ""
       o.on('--cufflinks_params PARAMS', String, "Specify additional cufflinks params") {|b| options[:cufflinks_params] = b}
 
-      options[:counts_bin] = File.join(BIN_DIR, "uxonCounts")
-      o.on('--counts_bin BIN_PATH', String, "Specify location of RPKM counting bin") {|b| options[:counts_bin] = b}
+      options[:simple_rpkm_bin] = File.join(BIN_DIR, "simpleRPKM")
+      o.on('--simple_rpkm_bin BIN_PATH', String, "Specify location of RPKM counting bin") {|b| options[:simple_rpkm_bin] = b}
 
       options[:bam_stats] = File.join(BIN_DIR, "bam_stats")
       o.on('--bam_stats BIN_PATH', String, "Specify bam stats command") {|b| options[:bam_stats] = b}
@@ -62,7 +62,7 @@ class RnaSeqPipeline < Pipeline
       add_error "ERROR samtools not found at:#{inputs[:samtools]}." unless File.exists? File.expand_path(inputs[:samtools])
       add_error "ERROR tophat not found at:#{inputs[:tophat]}." unless inputs[:tophat] and File.exists? File.expand_path(inputs[:tophat])
       add_error "ERROR cufflinks not found at:#{inputs[:cufflinks]}." unless inputs[:cufflinks] and File.exists? File.expand_path(inputs[:cufflinks])
-      add_error "ERROR Counts Bin not found at:#{inputs[:counts_bin]}." unless inputs[:counts_bin] and File.exists? File.expand_path(inputs[:counts_bin])
+      add_error "ERROR Counts Bin not found at:#{inputs[:simple_rpkm_bin]}." unless inputs[:simple_rpkm_bin] and File.exists? File.expand_path(inputs[:simple_rpkm_bin])
       add_error "ERROR bam_stats not found at:#{inputs[:bam_stats]}." unless inputs[:bam_stats] and File.exists? File.expand_path(inputs[:bam_stats])
 
       if inputs[:gtf] and inputs[:gtf].length > 0
@@ -201,18 +201,21 @@ class RnaSeqPipeline < Pipeline
     input :bam_file
     input :simple_output_path
     input :gtf
-    input :counts_bin
+    input :simple_rpkm_bin
     input :bam_stats
     output :simple_rpkm_file do |inputs|
       File.join(inputs[:simple_output_path], "genes.rpkm")
     end
     run do |inputs, outputs|
-      bam_reads_bin = File.join(File.dirname(__FILE__), '..', '..', '..', 'bin', 'bamReads')
-      uxon_out = File.join(inputs[:simple_output_path], "uxon_counts.txt")
-      command = "#{inputs[:counts_bin]} #{inputs[:gtf]} #{inputs[:bam_file]} #{uxon_out}"
+      alignment_out_filename = File.join(inputs[:simple_output_path], "alignment_count.txt")
+      command = "#{inputs[:bam_stats]} #{inputs[:bam_file]} --only total_alignments --table_out --no-headers > #{alignment_out_filename}"
       execute command
-      bam_read_out = File.join(inputs[:simple_output_path], "alignment_count.txt")
-      command = "#{inputs[:bam_stats]} #{inputs[:bam_file]} --only total_alignments --table_out --no-headers > #{bam_read_out}"
+
+      aligned_reads_count = File.open(alignment_out_filename,'r').read.chomp.split()[1]
+      puts alignment_out_filename
+
+      uxon_out = File.join(inputs[:simple_output_path], "uxon_counts.txt")
+      command = "#{inputs[:simple_rpkm_bin]} #{inputs[:gtf]} #{inputs[:bam_file]} #{uxon_out} #{aligned_reads_count}"
       execute command
     end
   end
