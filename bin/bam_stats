@@ -1,0 +1,501 @@
+#!/usr/bin/env ruby
+
+require 'open3'
+require 'optparse'
+
+# INPUT: directory of BAM files OR
+# SINGLE bam file OR list of BAM files
+#
+# OUTPUT: text file with BAM file stats
+# one line for each BAM file analyzed
+#
+VERSION = '1.3.1'
+
+help = <<HELP
+bam_stats provides a number of stats on the reads contained in a bam file. 
+
+Basic Usage:
+  bam_stats [OPTIONS] [BAM_FILES]
+
+      BAM_FILES               Can be:
+                               A single .bam file
+                               A space separated list of .bam files
+                               A directory with .bam files in it
+
+Output:
+   Defaults to bam_stats.txt in the same directory as the first .bam file
+
+Options:
+HELP
+
+@datums = ["name", "single_mapped_reads", "single_mapped_reads_percent", "multi_mapped_reads","multi_mapped_reads_percent", "total_alignable_reads",
+          "primary_alignments", "primary_alignments_percent", "secondary_alignments", "secondary_alignments_percent", "total_alignments", "total_aligns_in_bam", "unique_positions"]
+
+datum_descriptions = <<DD
+Stats File Fields:
+    name              
+                      Sample name. If two bam files have the same name,
+                      name will be appended by incrementing integer
+    single_mapped_reads
+                      Number of reads from the fastq file that align 
+                      to only one location in the reference genome.
+                      Found by counting number of reads with NH:i:1
+    single_mapped_reads_percent
+                      single_mapped_reads / total_alignable_reads
+    multi_mapped_reads
+                      Number of reads from the fastq file that align 
+                      to multiple locations in the reference genome
+    multi_mapped_reads_percent
+                      multi_mapped_reads / total_alignable_reads
+    total_alignable_reads
+                      single_mapped_reads + multi_mapped_reads
+
+    primary_alignments
+                      Count of total uniquely named alignments in bam file. 
+                      Each alignable read is counted once for this measure. 
+                      This is really just Total alignable reads, but 
+                      described in the context of the alignment.
+    secondary_alignments
+                      Count of Additional alignments in bam file from 
+                      multi-mapped reads.
+                      Found by looking for 0x100 flag in alignments
+    total_alignments
+                      primary_alignments + secondary_alignments.
+    total_aligns_in_bam
+                      Total number of lines in bam file. For a bam
+                      file that does not include unaligned data, 
+                      this should be the same as total_alignments
+    unique_positions
+                      Total number of unique alignment positions found
+                      for alignments in bam file. 
+                      Assumes bam file is position sorted.
+
+DD
+
+options = {}
+options[:file] = true
+options[:headers] = true
+options[:samtools] = `which samtools`.chomp
+options[:output] = "bam_stats.txt"
+options[:custom_output] = false
+
+OptionParser.new do |opts|
+  opts.banner = help
+
+  opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+    options[:verbose] = v
+  end
+  opts.on("--[no-]file", "Enable/Disable file output") do |v|
+    options[:file] = v
+  end
+  opts.on("--[no-]headers", "Enable/Disable header output") do |v|
+    options[:headers] = v
+  end
+  opts.on("-s", "--samtools SAMTOOLS_PATH", "Specify samtools path") do |o|
+    options[:samtools] = o
+  end
+  opts.on("-o", "--output OUTPUT_FILENAME", "Output filename") do |o|
+    options[:output] = o
+    options[:custom_output] = true
+  end
+  opts.on("-t", "--target TARGET_FILENAME", "Target filename. Should be csv with name,bam,fastq") do |o|
+    if !File.exists? o
+      puts "ERROR: -t used but #{o} is not a valid file"
+      exit(1)
+    end
+    options[:target] = o
+  end
+  opts.on("-n", "--names LIST,OF,NAMES", Array, "Sample Names to Use") do |o|
+    options[:names] = o
+  end
+  opts.on("--fancy", "Add commas and other fancy things to output") do |v|
+    options[:fancy] = v
+  end
+  opts.on("-f", "--fastqs FASTQ,FILES", Array, "Use additional fastq file") do |o|
+    options[:fastqs] = o
+    options[:fastqs].each do |fastq|
+      if !File.exists? fastq
+        puts "ERROR: -f used but #{fastq} is not valid file"
+        exit(1)
+      end
+    end
+  end
+  opts.on("--unique_sequences", "enable counting unique sequences") do |o|
+    require 'set'
+    options[:unique_sequences] = true
+    ind = @datums.index("unique_positions")
+    @datums.insert(ind + 1, "unique_sequences")
+  end
+  opts.on("--table_out", "Output table to command line") do |v|
+    options[:table_out] = v
+  end
+  opts.on("--only LIST,OF,ATTRIBUTES", Array, "Only provide output for these attributes") do |o|
+    o.each do |attr|
+      if !@datums.include?(attr)
+        puts "#{attr} is not a valid attribute."
+        puts "valid attributes:"
+        puts "#{@datums.join(", ")}"
+        exit(1)
+      end
+    end
+    options[:only] = o
+  end
+  opts.on("--version", "Show Version") do |h|
+    puts "bam_stats: #{VERSION}"
+    exit
+  end
+  opts.on("-h", "--help", "Show Help") do |h|
+    puts opts
+    puts datum_descriptions
+    exit
+  end
+end.parse!
+
+puts options if options[:verbose]
+puts ARGV if options[:verbose]
+
+SAMTOOLS = options[:samtools]
+
+if SAMTOOLS.empty? or !File.exists?(SAMTOOLS)
+  puts "ERROR: no samtools found"
+  puts " Use -s to specify samtools location"
+  exit(1)
+end
+
+
+input_data = []
+
+if !options[:target]
+  inputs = ARGV
+  bam_files = []
+  if inputs.size == 0
+    puts "ERROR: BAM file or directory name required"
+    puts " Use -h for more information"
+    exit(1)
+  elsif inputs.size > 1
+    bam_files = inputs
+  elsif File.extname(inputs[0]) == ".bam"
+    bam_files = [inputs[0]]
+  else
+    bam_files = Dir.glob(File.join(inputs[0], "*.bam"))
+  end
+
+  input_data = bam_files.collect {|bf| {:bam => bf}}
+
+  if options[:fastqs]
+    if (input_data.size != options[:fastqs].size)
+      puts "WARNING: fastq files provided, but number do not match bam files number"
+      puts "  ignoring fastq files"
+      options[:fastqs] = nil
+    else
+      options[:fastqs].each_with_index do |fq, index|
+        input_data[index][:fastq] = fq
+      end
+    end
+  end
+
+  if options[:names]
+    if (bam_files.size != options[:names].size)
+      puts "WARNING: names provided, but number do not match bam files number"
+      puts "  ignoring names"
+      options[:names] = nil
+    else
+      options[:names].each_with_index do |name, index|
+        input_data[index][:name] = name
+      end
+    end
+  end
+else
+
+
+  inputs = ARGV
+  if inputs.size > 1
+    puts "ERROR: Cannot use -t target and provide multiple bam locations"
+    exit(1)
+  end
+  target_dir = inputs.size == 1 ? inputs[0] : Dir.getwd()
+
+  target_data = File.open(options[:target],'r').read.split("\n")
+
+  target_data.each do |target|
+    next if target.empty?
+
+    fields = target.split(",").collect{|t| t.strip}
+
+    target = {:name => fields[0], :bam => File.join(target_dir, fields[1])}
+    if fields[2]
+      target[:fastq] = File.join(target_dir, fields[2])
+    end
+    input_data << target
+
+  end
+  puts "using target data:"
+  puts target_data.inspect
+end
+
+if input_data[0][:fastq]
+  ind = @datums.index("total_alignable_reads")
+  @datums.insert(ind + 1, "total_reads")
+  @datums.insert(ind + 1, "not_mapped_reads_percent")
+  @datums.insert(ind + 1, "not_mapped_reads")
+end
+
+if options[:verbose]
+  puts "Analyzing #{input_data.size} BAM files"
+end
+
+if !options[:custom_output]
+  output_filename = File.join(Dir.pwd, options[:output])
+else
+  if File.directory?(options[:output])
+    output_filename = File.join(options[:output], "bam_stats.txt")
+  else
+    output_filename = options[:output]
+  end
+end
+
+def format_number number
+  formatted_number = number
+  if number.to_f < 1 and number.to_f >= 0
+    formatted_number = "%.2f%" % (number * 100.0)
+  else
+    formatted_number = number.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
+  end
+  formatted_number
+end
+
+def output_data(bam_data, output_filename, options = {})
+  # output to file
+  File.open(output_filename, 'w') do |file|
+    if options[:headers]
+      file.puts @datums.join("\t")
+    end
+    bam_data.each do |name, values|
+      out = @datums.map {|d| options[:fancy] ? format_number(values[d]) : values[d]}
+      file.puts out.join("\t")
+    end
+  end
+end
+
+def report_data(bam_data, options = {})
+  # output to command line
+  if options[:table_out]
+    bam_data.each do |name, values|
+      format_string = @datums.reduce("") {|t,v| t += "%-#{v.length + 2}s "; t}
+      format_string += "\n"
+      out = @datums.map {|d| values[d]}
+      if options[:headers]
+        printf format_string, *@datums
+      end
+      printf format_string, *out
+    end
+  else
+    bam_data.each do |name, values|
+      puts "#{name}: "
+      printed_datums = @datums.select {|n| n != "name"}
+      max_length = printed_datums.reduce(0) {|t,v| t = (v.length > t) ? v.length : t; t}
+      printed_datums.each do |d|
+        printf "    %-#{max_length + 1}s: %s\n", d, format_number(values[d])
+      end
+    end
+  end
+end
+
+
+bam_data = {}
+
+FLAG_INDEX = 1
+REF_NAME_INDEX = 2
+POS_INDEX = 3
+SEQ_INDEX = 9
+OPTIONAL_INDEX = 11
+
+NUM_SIG_DIGITS = 4
+
+def bam_stats input_bam, name, bam_file_index, options = {}
+
+  bam_file = input_bam[:bam]
+
+  if options[:verbose]
+    puts "Analyzing: #{name}"
+    if input_bam[:fastq]
+      puts " with fastq: #{input_bam[:fastq]}"
+    end
+  end
+
+  bam_instance_data = {}
+  @datums.each {|datum| bam_instance_data[datum] = 0 }
+  bam_instance_data["name"] = name
+
+  command = "#{SAMTOOLS} view #{bam_file}"
+  puts command if options[:verbose]
+
+  # keep these out of hash until very end
+  # speed up is significant for not having to
+  # index into hash each iteration
+  total = 0
+  total_aligns = 0
+  primary_alignments = 0
+  secondary_alignments = 0
+  single_mapped_reads = 0
+  multi_mapped_reads = 0
+  unique_positions = 0
+  tag_warning = false
+
+  last_position = ""
+  unique_sequences = nil
+  if options[:unique_sequences]
+    unique_sequences = Set.new
+  end
+
+  Open3.popen3(command) do |i,o,e,t|
+    while line = o.gets
+      total += 1
+      data = line.split("\t")
+
+      flags = data[FLAG_INDEX].to_i
+
+      # get is aligned flag
+      mapped = flags & 0x4
+      mapped = (mapped == 0)
+      if mapped
+        total_aligns += 1
+      end
+
+      # determine primary or secondary alignment
+      secondary = flags & 0x100
+      secondary = (secondary != 0)
+      if mapped
+        if secondary
+          secondary_alignments += 1
+        else
+          primary_alignments += 1
+        end
+      end
+
+      #find uniquely mapped read
+      if(line =~ /NH:i:(\d+)/)
+        number_reported_alignments = $1.to_i
+        if number_reported_alignments == 1
+          single_mapped_reads += 1
+        elsif number_reported_alignments > 1 and !secondary
+          multi_mapped_reads += 1
+        end
+      elsif !tag_warning
+        puts "WARNING: \"NH:i\" tag not found"
+        puts "  single_mapped_reads and multi_mapped_reads calculations not correct"
+        tag_warning = true
+      end
+
+      cur_position = "#{data[REF_NAME_INDEX]}_#{data[POS_INDEX]}"
+      if mapped and cur_position != last_position
+        unique_positions += 1
+      end
+      last_position = cur_position
+
+      if options[:verbose] and (total % 10000000 == 0)
+        puts "\t#{total} Reads Analyzed"
+      end
+
+      if options[:unique_sequences]
+        sequence = data[SEQ_INDEX]
+        unique_sequences.add?(sequence)
+      end
+    end
+  end
+
+  bam_instance_data["total_aligns_in_bam"] = total
+  bam_instance_data["total_alignments"] = total_aligns
+  bam_instance_data["primary_alignments"] = primary_alignments
+  bam_instance_data["secondary_alignments"] = secondary_alignments
+  bam_instance_data["single_mapped_reads"] = single_mapped_reads
+  bam_instance_data["multi_mapped_reads"] = multi_mapped_reads
+  bam_instance_data["unique_positions"] = unique_positions
+
+  bam_instance_data["total_alignable_reads"] = bam_instance_data["single_mapped_reads"] + bam_instance_data["multi_mapped_reads"]
+  bam_instance_data["single_mapped_reads_percent"] = (bam_instance_data["single_mapped_reads"].to_f / bam_instance_data["total_alignable_reads"]).round(NUM_SIG_DIGITS)
+  bam_instance_data["multi_mapped_reads_percent"] = (bam_instance_data["multi_mapped_reads"].to_f / bam_instance_data["total_alignable_reads"]).round(NUM_SIG_DIGITS)
+
+  bam_instance_data["primary_alignments_percent"] = (bam_instance_data["primary_alignments"].to_f / bam_instance_data["total_alignments"]).round(NUM_SIG_DIGITS)
+  bam_instance_data["secondary_alignments_percent"] = (bam_instance_data["secondary_alignments"].to_f / bam_instance_data["total_alignments"]).round(NUM_SIG_DIGITS)
+
+  if input_bam[:fastq]
+    fastq_file = input_bam[:fastq]
+    reader = File.extname(fastq_file) == ".gz" ? "zcat" : "cat"
+    puts File.extname(fastq_file)
+    command = "#{reader} #{fastq_file} | wc -l"
+    puts command
+    result = `#{command}`
+    fastq_total = result.to_i / 4
+    bam_instance_data["total_reads"] = fastq_total
+    bam_instance_data["not_mapped_reads"] = fastq_total - (bam_instance_data["single_mapped_reads"] + bam_instance_data["multi_mapped_reads"])
+    bam_instance_data["not_mapped_reads_percent"] = (bam_instance_data["not_mapped_reads"].to_f / fastq_total.to_f).round(NUM_SIG_DIGITS)
+
+
+    # TODO: make configurable?
+    # if fastq file is provided, use total from it to calculate single_mapped_reads_percent and multi_mapped_reads_percent
+    bam_instance_data["single_mapped_reads_percent"] = (bam_instance_data["single_mapped_reads"].to_f / fastq_total.to_f).round(NUM_SIG_DIGITS)
+    bam_instance_data["multi_mapped_reads_percent"] = (bam_instance_data["multi_mapped_reads"].to_f / fastq_total.to_f).round(NUM_SIG_DIGITS)
+  end
+
+  if options[:unique_sequences]
+    bam_instance_data["unique_sequences"] = unique_sequences.length
+  end
+  bam_instance_data
+end
+
+def get_name(input_bam, existing_names, options = {})
+  name = ""
+  if input_bam[:name]
+    name = input_bam[:name]
+  else
+    name = File.basename(input_bam[:bam], File.extname(input_bam[:bam]))
+
+    # just in case multiple bam files with the same name are provided
+    name_count = 1
+    if existing_names.include?(name)
+      new_name = "#{name}_#{name_count}"
+      while existing_names.include?(new_name)
+        name_count += 1
+        new_name = "#{name}_#{name_count}"
+      end
+      name = new_name
+      name_count = 1
+    end
+  end
+  name
+end
+
+input_data.each_with_index do |input_bam, bam_file_index|
+  beginning_time = Time.now
+  if !File.exists?(input_bam[:bam])
+    puts "ERROR: cannot find bam file #{input_bam[:bam]}"
+    next
+  end
+
+  name = get_name(input_bam, bam_data.keys, options)
+
+  bam_instance_data = bam_stats(input_bam, name, bam_file_index, options)
+
+  bam_data[name] = bam_instance_data
+
+  if options[:verbose]
+    end_time = Time.now
+    puts "#{name}: #{(end_time - beginning_time).round(2)} seconds"
+  end
+end
+
+if options[:only]
+  @datums.keep_if {|n| options[:only].include?(n) or n == "name"}
+  bam_data.each do |sample_name, attributes|
+    attributes.keep_if {|k,v| options[:only].include?(k) or k == "name"}
+  end
+end
+
+if options[:file]
+  output_data(bam_data, output_filename, options)
+end
+
+report_data(bam_data, options)
+
+

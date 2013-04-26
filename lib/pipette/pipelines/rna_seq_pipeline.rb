@@ -36,6 +36,8 @@ class RnaSeqPipeline < Pipeline
       options[:counts_bin] = File.join(BIN_DIR, "uxonCounts")
       o.on('--counts_bin BIN_PATH', String, "Specify location of RPKM counting bin") {|b| options[:counts_bin] = b}
 
+      options[:bam_stats] = File.join(BIN_DIR, "bam_stats")
+      o.on('--bam_stats BIN_PATH', String, "Specify bam stats command") {|b| options[:bam_stats] = b}
       o.on('-y', '--yaml YAML_FILE', String, 'Yaml configuration file that can be used to load options. Command line options will trump yaml options') {|b| options.merge!(Hash[YAML::load(open(b)).map {|k,v| [k.to_sym, v]}]) }
       o.on('-s', "--steps STEPS" , Array, 'Specify only which steps of the pipeline should be executed') {|b| options[:steps] = b.collect {|step| step} }
       o.on("--not STEPS" , Array, 'Specify which steps of the pipeline to exclude') {|b| options[:not] = b.collect {|step| step} }
@@ -46,43 +48,37 @@ class RnaSeqPipeline < Pipeline
 
   step :check_input do
     run do |inputs, outputs|
-      # begin
-        add_error "ERROR - input FASTQ file required. Use -i parameter, or -h for more info" unless inputs[:input]
-        [inputs[:input]].flatten.each do |input|
-          add_error "ERROR Input file not found at:#{input}" unless File.exists? File.expand_path(input)
-        end
+      add_error "ERROR - input FASTQ file required. Use -i parameter, or -h for more info" unless inputs[:input]
+      [inputs[:input]].flatten.each do |input|
+        add_error "ERROR Input file not found at:#{input}" unless File.exists? File.expand_path(input)
+      end
 
-        if inputs[:pair]
-          inputs[:pair].each do |pair|
-            add_error "ERROR - pair FASTQ file required. Use -p parameter, or -h for more info" unless File.exists? pair
-          end
+      if inputs[:pair]
+        inputs[:pair].each do |pair|
+          add_error "ERROR - pair FASTQ file required. Use -p parameter, or -h for more info" unless File.exists? pair
         end
-        add_error "ERROR - bowtie index file required. Use --index parameter or -h for more info" unless inputs[:index]
-        add_error "ERROR samtools not found at:#{inputs[:samtools]}." unless File.exists? File.expand_path(inputs[:samtools])
-        add_error "ERROR tophat not found at:#{inputs[:tophat]}." unless inputs[:tophat] and File.exists? File.expand_path(inputs[:tophat])
-        add_error "ERROR cufflinks not found at:#{inputs[:cufflinks]}." unless inputs[:cufflinks] and File.exists? File.expand_path(inputs[:cufflinks])
-        add_error "ERROR Counts Bin not found at:#{inputs[:counts_bin]}." unless inputs[:counts_bin] and File.exists? File.expand_path(inputs[:counts_bin])
+      end
+      add_error "ERROR - bowtie index file required. Use --index parameter or -h for more info" unless inputs[:index]
+      add_error "ERROR samtools not found at:#{inputs[:samtools]}." unless File.exists? File.expand_path(inputs[:samtools])
+      add_error "ERROR tophat not found at:#{inputs[:tophat]}." unless inputs[:tophat] and File.exists? File.expand_path(inputs[:tophat])
+      add_error "ERROR cufflinks not found at:#{inputs[:cufflinks]}." unless inputs[:cufflinks] and File.exists? File.expand_path(inputs[:cufflinks])
+      add_error "ERROR Counts Bin not found at:#{inputs[:counts_bin]}." unless inputs[:counts_bin] and File.exists? File.expand_path(inputs[:counts_bin])
+      add_error "ERROR bam_stats not found at:#{inputs[:bam_stats]}." unless inputs[:bam_stats] and File.exists? File.expand_path(inputs[:bam_stats])
 
-        if inputs[:gtf] and inputs[:gtf].length > 0
-          if !File.exists?(inputs[:gtf])
-            add_error "GTF File provided, but #{inputs[:gtf]} cannot be found"
-          end
+      if inputs[:gtf] and inputs[:gtf].length > 0
+        if !File.exists?(inputs[:gtf])
+          add_error "GTF File provided, but #{inputs[:gtf]} cannot be found"
         end
+      end
 
-        report "checking inputs complete"
+      report "checking inputs complete"
 
-        if !all_errors.empty?
-          all_errors.each {|e| report e}
-          exit(1)
-        end
-      # rescue Exception => e
-      #   puts e
-      #   puts "Error found in check input. Please fix and run again"
-      #   exit(1)
-      # end
+      if !all_errors.empty?
+        all_errors.each {|e| report e}
+        exit(1)
+      end
     end
   end
-
 
   step :create_tophat_out do
     input :output
@@ -155,7 +151,6 @@ class RnaSeqPipeline < Pipeline
       report "creating cufflinks directory if needed"
       command = "mkdir -p #{outputs[:cufflinks_output_path]}"
       execute command
-
     end
   end
 
@@ -206,17 +201,18 @@ class RnaSeqPipeline < Pipeline
     input :bam_file
     input :simple_output_path
     input :gtf
+    input :counts_bin
+    input :bam_stats
     output :simple_rpkm_file do |inputs|
       File.join(inputs[:simple_output_path], "genes.rpkm")
     end
     run do |inputs, outputs|
-      uxon_count_bin = File.join(File.dirname(__FILE__), '..', '..', '..', 'bin', 'uxonCounts')
       bam_reads_bin = File.join(File.dirname(__FILE__), '..', '..', '..', 'bin', 'bamReads')
       uxon_out = File.join(inputs[:simple_output_path], "uxon_counts.txt")
-      command = "#{uxon_count_bin} #{inputs[:bam_file]} #{inputs[:gtf]} > #{uxon_out}"
+      command = "#{inputs[:counts_bin]} #{inputs[:bam_file]} #{inputs[:gtf]} > #{uxon_out}"
       execute command
-      bam_read_out = File.join(inputs[:simple_output_path], "bam_data.txt")
-      command = "#{bam_reads_bin} #{inputs[:bam_file]} > #{bam_read_out}"
+      bam_read_out = File.join(inputs[:simple_output_path], "alignment_count.txt")
+      command = "#{inputs[:bam_stats]} #{inputs[:bam_file]} --only total_alignments --table_out --no-headers > #{bam_read_out}"
       execute command
     end
   end
