@@ -1,9 +1,11 @@
 #!/usr/bin/perl
 
-## Takes a BAM file and an uxon BED file and returns (approximate) genewise read counts. 
+## Takes an uxon BED file and a BAM file and returns (approximate) genewise read counts. 
 ## 20110818 by apa.  
 
 ## v2 requires no output file, instead writes generic-named file to $bam directory
+#
+#RUN: uxonCounts ./genes.gtf ./bam.bam ./out.txt
 
 my ($defs, $bam, $outfile) = @ARGV;   # $defs e.g. uxons.bed from my bowtie index sets
 
@@ -11,7 +13,7 @@ my ($defs, $bam, $outfile) = @ARGV;   # $defs e.g. uxons.bed from my bowtie inde
 my %knownext = map {($_=>1)} qw/ bed gtf /;
 my ($ext) = ($defs =~ /\.(bed|gff|gtf)/i);
 $ext = "\L$ext";
-die "Unknown exon definition file type '$ext': must be one of bed, gtf, gff.\n" unless $knownext{$ext};
+die "Unknown exon definition file type '$defs': must be one of bed, gtf, gff.\n" unless $knownext{$ext};
 my ($bampath) = ($bam =~ /^(.*)\/[^\/]+$/);
 $bampath = '.' unless $bampath;   # bam file might not have explicit path
 my $tempout = "uxonCovg_temp_$$.txt";
