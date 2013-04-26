@@ -1,5 +1,5 @@
-reference: "/n/data1/genomes/igenome/Drosophila_melanogaster/UCSC/dm3/Sequence/Bowtie2/genome.fa"
-index: "/n/data1/genomes/igenome/Drosophila_melanogaster/UCSC/dm3/Sequence/Bowtie2/genome"
+reference: "/n/data1/genomes/igenome/Drosophila_melanogaster/UCSC/dm3/Sequence/Bowtie2Index/genome.fa"
+index: "/n/data1/genomes/igenome/Drosophila_melanogaster/UCSC/dm3/Sequence/Bowtie2Index/genome"
 gtf: "/n/data1/genomes/igenome/Drosophila_melanogaster/UCSC/dm3/Annotation/Genes/genes.gtf"
 output: "rna_seq_out"
 tophat: "/n/local/bin/tophat"

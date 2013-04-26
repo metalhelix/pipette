@@ -244,6 +244,9 @@ class RnaSeqPipeline < Pipeline
     run do |inputs, outputs|
       command = "mv #{inputs[:bam_file]} #{outputs[:moved_bam_file]}"
       execute command
+
+      command = "ln -s #{outputs[:moved_bam_file]} #{inputs[:bam_file]}"
+      execute command
     end
   end
 
