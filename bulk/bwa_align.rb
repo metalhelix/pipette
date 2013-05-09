@@ -1,25 +1,40 @@
 #!/usr/bin/env ruby
 
-$LOAD_PATH.unshift(File.dirname(__FILE__))
+CUR_DIR = File.dirname(__FILE__)
+$LOAD_PATH.unshift(CUR_DIR)
 
 require 'sample_report'
 
 require 'parallel'
 
-CUR_DIR = File.expand_path(File.dirname(__FILE__))
-$:.unshift(CUR_DIR)
+PIPETTE = File.join(CUR_DIR, "..", "pe_bwa.rb")
 
+if !File.exists? PIPETTE
+  puts "ERROR: cannot find pipette at:"
+  puts " #{PIPETTE}"
+  exit(1)
+end
+
+WORKING_DIR = Dir.pwd
 PROCESSES = 2
 
 
 fastq_dir = File.expand_path(ARGV[0])
 config_file = ARGV[1]
 
+if !fastq_dir or !File.exists?(fastq_dir) or !config_file or !File.exists?(config_file)
+  puts "ERROR: invalid input"
+  puts "Please run with the fastq directory and the pipette config file."
+  puts "Example: "
+  puts "  ./pipette/bulk/bwa_align.rb /n/analysis/Mak/huy/MOLNG-395/C1TN6ACXX/ pe_bwa_config.yml"
+  exit(1)
+end
 
-output_dir = File.join(CUR_DIR, "align")
+
+
+output_dir = File.join(WORKING_DIR, "align")
 system("mkdir -p #{output_dir}")
 
-PIPETTE = File.join(CUR_DIR, "..", "pe_bwa.rb")
 
 # reject second read as they will be handled below
 sequence_filenames = Dir.glob(File.join(fastq_dir, "s_*_1_*.fastq.gz"))
@@ -70,7 +85,7 @@ Parallel.each(sequence_filenames, :in_processes => PROCESSES) do |sequence_filen
   # puts input_filename
   # puts pair_filename
 
-  command = "#{PIPETTE} -y #{CONFIG_FILE} --input #{input_filename} --pair #{pair_filename} --output #{full_output_dir} --name #{sample_name}"
+  command = "#{PIPETTE} -y #{config_file} --input #{input_filename} --pair #{pair_filename} --output #{full_output_dir} --name #{sample_name}"
   puts command
   result = %x[#{command}]
   puts result
