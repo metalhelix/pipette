@@ -78,7 +78,7 @@ Parallel.each(sequence_filenames, :in_processes => PROCESSES) do |sequence_filen
 
   if File.exists?(File.dirname(full_output_dir))
     puts "skipping #{full_output_dir}"
-    next
+    # next
   end
 
   # puts sample_name

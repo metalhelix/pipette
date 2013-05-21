@@ -18,6 +18,7 @@ end
 sample_report = SampleReport.new(sample_report_filename)
 
 bam_filenames = Dir.glob(File.join(bam_dir, "**", "*.group.reorder.bam"))
+# bam_filenames = Dir.glob(File.join(bam_dir, "**", "*.rmdup.group.bam"))
 
 puts "#{bam_filenames.size} found"
 
