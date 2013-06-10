@@ -119,6 +119,22 @@ class BwaPipeline < Pipeline
     end
   end
 
+  step :create_dict do
+    input :reference
+    input :picard
+    output :reference_dict do |inputs|
+      dict_filename = inputs[:reference].split(".")[0..-2].join(".") + ".dict"
+      dict_filename
+    end
+    run do |inputs, outputs|
+      if !File.exists? outputs[:reference_dict]
+        command = "java -jar #{inputs[:picard]}/CreateSequenceDictionary.jar REFERENCE=#{inputs[:reference]} OUTPUT=#{outputs[:reference_dict]}"
+
+        execute command
+      end
+    end
+  end
+
   step :order_bam do
     input :bam_file
     input :name
