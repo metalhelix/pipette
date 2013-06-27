@@ -22,7 +22,7 @@ class GATK
     defaults = { :verbose => true,
                  :cores => 4,
                  :java_params => ["-Xmx5g"],
-                 :gatk_params => {"-et" => "NO_ET"}
+                 :gatk_params => {}
                }
     @options = options.merge defaults
     check_options @options
