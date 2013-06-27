@@ -193,6 +193,7 @@ TYPE can be one of the following:
   # ---
   def run_pipeline(samples, args)
     processes = @options['processes']
+    puts "RUNNING #{processes} PROCESSES"
     Parallel.each(samples, :in_processes => processes) do |sample|
       input_string = sample['input'].collect{ |i| i['full']}.join(",")
       pair_string = nil
@@ -266,7 +267,7 @@ TYPE can be one of the following:
   def run(input_file, additional_args)
 
     samples, args = parse_samples_file(input_file)
-    args.concat(additional_args)
+    #args.concat(clean_args(additional_args))
     run_pipeline(samples, args)
   end
 
